@@ -1,28 +1,27 @@
 # WellSim — standalone portable program
 
-**Build 2.6 — 9 September 2026**, from commit `615c972` of the main project.
+**Build 2.7 — 9 September 2026**, from commit `8423d73` of the main project.
 Identical physics to what wellsim.app served before it was retired; the source
-is guarded by 344 tests and the 43/43 validation sweep, both passing.
+is guarded by 344 tests and the 43/43 validation sweep, and this build itself
+passed the **38/38 module smoke suite** with the exe as the only listener.
 
-> **NO BUILT COPY OF THIS PROGRAM EXISTS.** 2.6 was built on 9 September 2026
-> and deleted the same day at the owner's instruction — the release folders on
-> both drives, the build output in the project, and finally both zips inside
-> the backups. WellSim is source only. Everything below describes 2.6 as it
-> was and is the specification a rebuild reproduces; `npm install` then
-> `.\build.ps1` makes one, signed, in about a minute.
+> **2.5, 2.6 AND 2.7 ARE THE SAME PROGRAM.** Nothing in `src/`, `portable/`,
+> `build.ps1` or the SEA config has changed since commit `9025968` — the
+> commits between are the wellsim.app retirement, the credential clearance
+> and the records of both. The engineering, the correlations and the answers
+> are identical across all three.
 >
-> **2.6 IS A REBUILD OF 2.5, NOT A NEW VERSION.** Nothing in `src/`,
-> `portable/`, `build.ps1` or the SEA config changed between commit `9025968`
-> (2.5) and `615c972` — the thirteen commits between them are the wellsim.app
-> retirement, the credential clearance and the documentation that records
-> them. **The program behaves identically.** 2.6 exists because on 9 September
-> every portable binary was deleted from both drives, 2.5 included, and this
-> is the replacement built from the same source.
+> **They are three different FILES, and always would be.** Each build takes a
+> fresh signature, a fresh timestamp and a base `node.exe` from whatever Node
+> is installed at the time, so no two builds of identical source produce the
+> same bytes. Every `WellSim-*.sha256.txt` records the file it was written
+> for; **none of them is a target a later build should hit.**
 >
-> It is a **different file** from 2.5 and always would be: a fresh signature
-> and timestamp, and a base `node.exe` taken from whatever Node is installed
-> at build time. So `WellSim-2.6.sha256.txt` does not and cannot match
-> `WellSim-2.5.sha256.txt`. Both are records of what shipped, not targets.
+> **Why the numbers keep moving:** 2.5's binary was deleted on 9 September,
+> 2.6 was built to replace it and was deleted the same day, and 2.7 is the
+> current one. The version number tracks the FILE, not the program. If you
+> are handed an exe, check it against the `.sha256.txt` bearing its own
+> number and ignore the others.
 >
 > **There is no `ThePWF-CodeSigning.cer` in this release.** All 81 copies were
 > deleted on 9 September with the ThePWF identity. Only

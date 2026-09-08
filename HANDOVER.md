@@ -302,22 +302,27 @@ private; neither belongs in a repository. They **are** in the F: backup.
   from committed source; the outputs (`WellSim.exe`, `build/`) are gitignored
   because they are ~200 MB per build. It serves the identical UI and physics,
   stores cases in a `cases/` folder **beside the exe**, has no accounts, and
-  takes the first free port from 3355. The last build was **2.6, 9 Sep 2026**,
-  from commit `615c972`, signed `CN=M. El-Ashry`.
+  takes the first free port from 3355. Current: **build 2.7, 9 Sep 2026**,
+  from commit `8423d73`, signed `CN=M. El-Ashry`, at `D:\WellSim_2.7\` and
+  `F:\WellSim_2.7\` — exe, bare zip, distribution zip, both hash records and
+  the certificate. **With the site retired this is the deliverable.**
 
-  **NO BUILT COPY EXISTS ANYWHERE.** 2.6 was made on 9 Sep and deleted the
-  same day at the owner's instruction, in three passes — the release folders
-  `D:\WellSim_2.6` and `F:\WellSim_2.6`, the build output in the project root,
-  and finally both zips inside the backups. With the site retired the day
-  before, **WellSim is source only**: this repo, plus the workbooks and
-  archives on D: and F:. That is the intended end state, not an accident.
+  **2.5, 2.6 and 2.7 are the SAME PROGRAM.** Nothing in `src/`, `portable/`,
+  `build.ps1` or `sea-config.json` has changed since `9025968`; the commits
+  between are the retirement, the credential clearance and the records of
+  both. They are three different FILES because every build takes a fresh
+  signature, timestamp and base `node.exe` — **no two builds of identical
+  source produce the same bytes.** The version number tracks the file, not
+  the program, and 2.5's and 2.6's binaries no longer exist. Check any exe
+  against the `.sha256.txt` bearing its own number; the others are history,
+  never targets.
 
-  What is kept is the RECORD of what was built —
-  `WellSim-2.6.sha256.txt` and `WellSim-2.6-distribution.sha256.txt` in the
-  backup's `portable/`, with the hashes, the signer details and the
-  instructions a recipient needs. **Those hashes describe files that no
-  longer exist and a rebuild will not reproduce them**; they are history, not
-  targets.
+  2.7 was **verified by running it**, not by trusting the build log: with the
+  dev server stopped so the exe was the only listener, the project's own
+  smoke suite passed **38/38** against the binary — oil nodal, ESP coupling,
+  gas lift, the reserve solvers, Tarner and Walsh, gas p/Z, condensate
+  properties, water injectivity — and it serves `/vendor/plotly.min.js` with
+  no CDN reference.
 
   **2.6 is a REBUILD of 2.5, not a new version.** Nothing in `src/`,
   `portable/`, `build.ps1` or `sea-config.json` changed between `9025968` and
