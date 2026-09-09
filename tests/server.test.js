@@ -251,3 +251,34 @@ test('every servable portable asset is embedded in the SEA config', () => {
     );
   }
 });
+
+test('the server binds loopback unless HOST opts out, and the container is the only opt-out', () => {
+  const src = readFileSync(path.join(root, 'src/server/server.js'), 'utf8');
+
+  const listen = src.match(/server\.listen\(([^)]*)\)/);
+  assert.ok(listen, 'could not find the server.listen call');
+  assert.match(
+    listen[1],
+    /PORT,\s*HOST/,
+    'server.listen must pass a host; listening with the port alone binds EVERY interface, ' +
+      'which puts an unauthenticated server holding real client cases on the local network'
+  );
+  assert.match(
+    src,
+    /HOST\s*=\s*process\.env\.HOST\s*\?\?\s*'127\.0\.0\.1'/,
+    'the default host must be 127.0.0.1 — exposure has to be opt-in, not the default'
+  );
+
+  // The container genuinely needs every interface, and is the only place that
+  // may say so. If another file starts setting HOST, this test should be the
+  // thing that makes someone justify it.
+  const docker = readFileSync(path.join(root, 'Dockerfile'), 'utf8');
+  assert.match(docker, /ENV HOST=0\.0\.0\.0/, 'the container must opt in to 0.0.0.0 or it is unreachable');
+
+  const portable = readFileSync(path.join(root, 'portable/main.js'), 'utf8');
+  assert.match(
+    portable,
+    /listen\(\s*port,\s*'127\.0\.0\.1'/,
+    'the portable exe must stay loopback-only: it ships to other people'
+  );
+});

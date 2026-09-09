@@ -89,7 +89,7 @@ nobody is watching yet. The check in `deploy/README-server-rebuild.md` has to
 pass before any DNS points at anything.
 
 **Current working tree:** `main` merged into `codex/v2-foundation`,
-344 tests passing and 43/43 validation sweep. The separate `bldrz`
+345 tests passing and 43/43 validation sweep. The separate `bldrz`
 database has migrations `0001`–`0003`, with least-privilege roles and an
 opt-in, bounded PostgreSQL connection pool.
 
@@ -141,7 +141,7 @@ The web server uses Node built-ins plus `pg` for opt-in PostgreSQL. The UI is
 plain HTML/JS. Plotly is the single external asset, from a CDN.
 
 ```bash
-npm test                          # 343 unit, regression and security tests
+npm test                          # 345 unit, regression and security tests
 node scripts/validation-sweep.mjs # 43 physics checks against analytic answers
 ```
 
@@ -210,6 +210,38 @@ scripts/             validation-sweep.mjs · make-icons.mjs
 private; neither belongs in a repository. They **are** in the F: backup.
 
 ## 5. Operational knowledge that is not in the code
+
+### The server binds loopback, and that was a fix, not a default
+
+Until 9 Sep 2026 `server.listen(PORT)` was called with **no host**, which
+binds every interface. Combined with two enabled inbound firewall rules
+allowing `Node.js JavaScript Runtime` on **any port on the Public profile**,
+that meant: whenever the dev server ran, **any machine on the same network
+could reach it — including on an untrusted network.** There is no
+authentication in front of this server, `data/` holds real client cases, and
+with `WELLSIM_ENABLE_LEGACY_CASE_STORE=1` it would have offered a login form
+to that network.
+
+It now binds `process.env.HOST ?? '127.0.0.1'`. Measured after the change:
+`127.0.0.1:3355` answers 200 and this machine's own LAN address refuses the
+connection. **Exposure is opt-in.** The `Dockerfile` sets `HOST=0.0.0.0`
+because a container is unreachable otherwise, and it is the ONLY place that
+should. The retired production box proxied `127.0.0.1:3355` from Caddy on the
+same machine, so loopback would have been correct there too.
+
+`tests/server.test.js` guards all three facts — the listen call passes a host,
+the default is loopback, the portable stays pinned to `127.0.0.1`. The
+portable was always correct; only the dev server was not.
+
+**The firewall rules are still there** and are the owner's to remove — they
+need elevation, and they are a system security setting. With loopback binding
+they no longer expose WellSim, but they still allow *any* node process
+inbound on a public network:
+
+```powershell
+Get-NetFirewallRule -DisplayName 'Node.js JavaScript Runtime' | Remove-NetFirewallRule
+```
+
 
 - **The legacy company case store is disabled by default.** Its registration
   flow accepted a company slug typed by the registrant, which cannot establish

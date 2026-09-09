@@ -140,8 +140,17 @@ const server = http.createServer(async (req, res) => {
 });
 
 const PORT = Number(process.env.PORT ?? 3355);
-server.listen(PORT, () => {
+// Bind loopback by default. Listening on every interface is opt-in via HOST,
+// because this server has no authentication in front of it: with the legacy
+// case store enabled it would offer a login form, and its data/ holds real
+// client cases. The retired production box proxied 127.0.0.1:3355 from Caddy
+// on the same machine, so loopback was always sufficient there too; a
+// container is the case that genuinely needs 0.0.0.0, and its Dockerfile
+// sets HOST accordingly.
+const HOST = process.env.HOST ?? '127.0.0.1';
+server.listen(PORT, HOST, () => {
   console.log(`wellsim UI on http://localhost:${PORT}`);
+  console.log(`bound to ${HOST}${HOST === '127.0.0.1' ? ' (this machine only)' : ' — REACHABLE FROM THE NETWORK'}`);
   console.log(`PostgreSQL boundary: ${database.enabled ? 'ready' : 'disabled'}`);
 });
 
