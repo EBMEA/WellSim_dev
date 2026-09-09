@@ -261,13 +261,33 @@ appeared in the first place.
   re-extracting or wiping it could not take the backups with it. That timer was
   disabled with the retirement. **Nothing is backing up automatically now.**
 
-  What that store held is captured and safe: the final pull and the whole
-  30-day history are in `WellSim-ServerRetirement-2026-09-08` on **D: and F:**,
-  11/11 checksums OK on both — **4 accounts across 2 companies (bapetco, bap)
-  and 8 saved client cases**, every one read back and confirmed to parse. The
+  What that store held is captured: the final pull and the whole 30-day
+  history are in `WellSim-ServerRetirement-2026-09-08` on **D: and F:**,
+  11/11 checksums OK on both — 4 accounts across 2 companies (bapetco, bap)
+  and 8 saved client cases, every one read back and confirmed to parse. The
   workstation's own `data/` is AHEAD of that capture (gas-lift-oil and gas-test
   were re-saved locally on 2 Sep with newer fields), so restoring the archive
   over it would roll those back.
+
+  **THE PASSWORD HASHES ARE GONE FROM THIS WORKSTATION (9 Sep 2026).** Four
+  people's salted hashes sat in `data/users.json` with the account store
+  disabled and the site retired — credential material with no remaining
+  purpose. Deleting that one file would have achieved nothing: **there were
+  14 copies**, one live and thirteen more in `data-backups/`, one per dated
+  snapshot plus the pre-restore set. All 14 are deleted. **The 8 client cases
+  were not touched** — they live in `data/cases/`, separate from the hashes,
+  and 73 case files remain. Verified afterwards by restarting: the server
+  starts clean without the file, `/api/accounts/status` still reports
+  `enabled:false`, the page returns 200, 38/38 smoke checks pass and no
+  console error appears.
+
+  **Copies still exist in the ARCHIVES on D: and F:** — inside the backup
+  tarballs and the retirement capture — and were deliberately left there:
+  they sit under verified manifests, and the capture is the last record of
+  what that server held. If the hashes must be gone everywhere, those
+  archives have to be rebuilt, not edited in place, or their checksums stop
+  matching. Re-enabling the legacy store now would find no users and no way
+  to register one, which is the intended state.
 
   **The protection now is manual and yours.** Local `data/` and `data-backups/`
   sit on the same disk as the thing they protect — they survive a bad write,
