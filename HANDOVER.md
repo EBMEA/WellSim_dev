@@ -233,14 +233,14 @@ same machine, so loopback would have been correct there too.
 the default is loopback, the portable stays pinned to `127.0.0.1`. The
 portable was always correct; only the dev server was not.
 
-**The firewall rules are still there** and are the owner's to remove — they
-need elevation, and they are a system security setting. With loopback binding
-they no longer expose WellSim, but they still allow *any* node process
-inbound on a public network:
-
-```powershell
-Get-NetFirewallRule -DisplayName 'Node.js JavaScript Runtime' | Remove-NetFirewallRule
-```
+**The firewall rules were removed by the owner on 9 Sep**, and verified: no
+inbound rule mentions node or wellsim, nothing opens 3355, and all three
+firewall profiles remain enabled. So the exposure is closed twice over — the
+server binds loopback AND node has no inbound allowance. Re-checked after the
+change: `127.0.0.1:3355` still answers 200 (loopback never passes through the
+firewall) while the LAN address refuses. **If a future node tool prompts to
+"allow access" on a public network, say no** — that prompt is how these rules
+appeared in the first place.
 
 
 - **The legacy company case store is disabled by default.** Its registration
