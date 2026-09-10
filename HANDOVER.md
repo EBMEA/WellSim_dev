@@ -2,7 +2,7 @@
 
 **Live:** none — wellsim.app retired 8 Sep 2026; run locally or use the portable ·
 **Codex comparison:** https://bldrz.net ·
-**Repo:** https://github.com/aleimam/wellsim · **Manual:** `src/ui/help.html` (served at /help.html by a local run)
+**Repo:** https://github.com/EBMEA/WellSim_dev · **Manual:** `src/ui/help.html` (served at /help.html by a local run)
 
 **WELLSIM.APP IS RETIRED.** On 8 September 2026 the owner retired the domain
 outright and took WellSim off the Hetzner box. **There is no production site.**
@@ -88,23 +88,80 @@ fresh box built from `main` would reopen public registration on a machine
 nobody is watching yet. The check in `deploy/README-server-rebuild.md` has to
 pass before any DNS points at anything.
 
-**Current working tree:** `main` merged into `codex/v2-foundation`,
-345 tests passing and 43/43 validation sweep. The separate `bldrz`
-database has migrations `0001`–`0003`, with least-privilege roles and an
-opt-in, bounded PostgreSQL connection pool.
+**Current working tree:** clean, on `main`, **345/345 tests passing** — re-run
+on 10 Sep against the merged tree, not carried forward as a claim. The
+separate `bldrz` database has migrations `0001`–`0003`, with least-privilege
+roles and an opt-in, bounded PostgreSQL connection pool.
 
-**Where the work sits, 8 September 2026 (evening):** branch
-`merge/gas-forecast-into-v2` at `b0581d4` (176 commits), pushed to origin and
-in sync. It is ahead of both `origin/main` (`de2393c`, by 97 commits) and
-`origin/codex/v2-foundation` (`b087a24`) and **has not been merged into
-either** — no PR exists yet. **This branch is the only place the current work
-lives**, and with no site to hold a copy, that matters more than it did: the
-backups on D: and F: and the pushed remote are the redundancy.
+**Where the work sits, 10 September 2026:** `main` at `3a0a720`
+(193 commits), pushed and in sync with a **new** remote. The feature branch
+is gone — merged and retired the same day.
 
-**The newest portable release is 2.5** (`D:\WellSim_2.5`, also on F:), built
-from `9025968` and signed `CN=M. El-Ashry`. It carries everything the retired
+- `merge/gas-forecast-into-v2` **fast-forwarded into `main`**. `main` was a
+  strict ancestor of it (0 behind, 114 ahead), so there is **no merge
+  commit** and the history is linear. The branch was then deleted locally
+  and on the new remote; it was left in place on `origin`.
+- **`main` no longer lacks `27ea04e`.** Earlier revisions of this file and of
+  the backup READMEs warned that it did and that `main` "must not be deployed
+  anywhere". That is resolved. There is still nothing to deploy to.
+
+**The remotes disagree, and it matters which one you reach:**
+
+| remote | repository | `main` |
+| --- | --- | --- |
+| `wellsim-dev` | `EBMEA/WellSim_dev` | `3a0a720` — **current**, default branch |
+| `origin` | `aleimam/wellsim` | `de2393c` — 114 commits behind |
+| `ebmea` | `EBMEA/wellssim` | untouched (note the double `s`) |
+
+`origin` has received **none** of this work, and its copy of the feature
+branch (`8423d73`) is five commits behind what was merged. Local `main` now
+tracks `wellsim-dev/main` — it previously tracked nothing at all — so a bare
+`git push` or `git pull` goes to `EBMEA/WellSim_dev`. Reaching the other two
+takes an explicit remote name.
+
+**`EBMEA/WellSim_dev` is a public repository.** Before the first push the
+whole history on every branch was scanned for private keys, cloud tokens and
+inline secret assignments; nothing was found outside false positives in the
+vendored `src/ui/vendor/plotly.min.js`. What *is* public beyond code was
+published knowingly: `deploy/` carries real hostnames, the Caddy config and
+the systemd units as they ran, and this file narrates the infrastructure and
+the credential purge in detail. None of it is a credential. The gitignore
+that keeps `data/`, the workbooks, the ESP catalogue and `ALdocs/` out of git
+is what makes that safe, and it was re-checked.
+
+**What was actually run on 10 September, and what it showed.** None of this
+is carried forward from an earlier entry:
+
+- `npm test` — **345/345 pass, 0 fail**, 138 s, on the merged tree.
+- The dev server was started from `.claude/launch.json` and driven in a
+  browser, then stopped. It logged **`bound to 127.0.0.1 (this machine
+  only)`** — `9943e99` still doing its job — and `PostgreSQL boundary:
+  disabled`. Oil Well solved at 2132 stb/d, Pwf 2647 psi, AOF 6369. Gas Well
+  → Forecast produced the p/Z tank + nodal chart and a 60-row table, every
+  request 200, no console or server errors.
+- The behaviour `de2393c` describes was confirmed **directly, in the UI**:
+  the chart carries **one** FTHP line — a history trace and a forecast trace
+  of the same quantity — and **FTHT appears only as a table column**, not as
+  a chart trace.
+- A full backup was taken and mirrored: **`WellSim-FullBackup-2026-09-10` on
+  D: and F:**, 187 MB, **26/26 checksums OK on each**, manifests identical.
+  The bundle was cloned back from *both* copies as a restore drill and each
+  landed on `main` `3a0a720`, tree `9afa218d`, matching the working copy.
+  Its `local-data/` tarball was **rebuilt from disk, never copied forward** —
+  140 entries, 81 case files, **zero `users.json`** — and searched for hash,
+  salt and password material before being sealed. Nothing found.
+
+**The bundle is no longer the only off-machine copy of the recent work.** The
+four commits that `WellSim-FullBackup-2026-09-09d` flagged as unpushed —
+`9fc79be`, `9943e99`, `5025ccf`, `3a0a720` — are on GitHub as of today. The
+Windows Credential Manager problem that blocked that push did not recur; the
+`gh` CLI credential carried it.
+
+**The newest portable release is 2.7** (`D:\WellSim_2.7`, also on F:), built
+from `8423d73` and signed `CN=M. El-Ashry`. It carries everything the retired
 site carried, so **the portable is now the delivery vehicle** — demos and
-daily work need no domain at all.
+daily work need no domain at all. *(This paragraph said 2.5 until 10 Sep,
+contradicting the portable section below, which had 2.7 right.)*
 
 The two-device branch/site contract below records the branch discipline. Its
 site half is dormant: there is no site to deploy to, and a green test run was
