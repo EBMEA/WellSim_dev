@@ -1,19 +1,31 @@
 # Caddyfile for a server that hosts WellSim AND NOTHING ELSE.
 #
-# The old box (91.98.23.255) terminates TLS for six names across three sites:
-# wellsim.app, thepwf.net and bldrz.net. Only WellSim is moving; the other two
-# stay where they are, untouched (owner decision, 8 Sep 2026). This file is
-# therefore the live Caddyfile with the thepwf and bldrz blocks REMOVED —
-# the two wellsim blocks below are verbatim from the running box.
+# THE DOMAIN CHANGED, 11 September 2026. This file served `wellsim.app` until
+# that name was retired on 8 September (its Cloudflare zone is empty and it no
+# longer resolves, though the registration is still the owner's). WellSim
+# relaunches on **wellssim.app** — note the DOUBLE S — bought from Spaceship
+# on 11 September. The blocks below name the new domain. Everything else is
+# verbatim from the old box, which is why the file is otherwise unchanged.
 #
-# Install as /etc/caddy/Caddyfile on the NEW server. Caddy gets its own
-# Let's Encrypt certificate for wellsim.app the first time DNS points here and
-# ports 80/443 are open; nothing needs copying from the old machine.
+# Install as /etc/caddy/Caddyfile on the new server. Caddy gets its own
+# Let's Encrypt certificate the first time DNS points here and 80/443 are
+# open; nothing needs copying from the old machine, which no longer holds any
+# WellSim certificate or config.
+#
+# PORT 80 IS NOT OPTIONAL. Caddy needs it for the ACME HTTP challenge before
+# it can serve 443 at all. And `.app` is on the HSTS preload list, so browsers
+# force HTTPS for this name with no click-through: until the certificate
+# issues, the site is unreachable rather than merely insecure.
 #
 # /var/log/caddy must exist and be writable by the caddy user, or the log
 # directive fails at startup.
+#
+# THE www BLOCK NEEDS A www DNS RECORD. As of 11 Sep, www.wellssim.app does
+# not resolve. Caddy will keep retrying ACME for a name that points nowhere
+# and fill the log with failures. Either create the record alongside the apex
+# one, or delete the www block below — do not leave it half-configured.
 
-wellsim.app {
+wellssim.app {
     reverse_proxy 127.0.0.1:3355
     # access log added 1 Sep 2026 — the site had NO traffic record since launch
     log {
@@ -23,6 +35,6 @@ wellsim.app {
         }
     }
 }
-www.wellsim.app {
-    redir https://wellsim.app{uri} permanent
+www.wellssim.app {
+    redir https://wellssim.app{uri} permanent
 }
