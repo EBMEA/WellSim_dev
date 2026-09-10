@@ -150,6 +150,25 @@ is carried forward from an earlier entry:
   Its `local-data/` tarball was **rebuilt from disk, never copied forward** —
   140 entries, 81 case files, **zero `users.json`** — and searched for hash,
   salt and password material before being sealed. Nothing found.
+- Later the same day, after this file was first updated and pushed
+  (`50b345f`): **`WellSim-FullBackup-2026-09-10b`** on both drives, sealed at
+  `50b345f`, superseding `-10`; and a fresh **`WellSim-Handover-2026-09-10`**
+  on both drives, 181/181, with `npm test` 345/345, the 43/43 sweep and the
+  38/38 module smoke all run against the exported copy itself. Its
+  `07-workstation-data` no longer carries credential material, its
+  `03-specification` now includes `aldocs.tar.gz` (the lift-selection
+  workbook is the authority for the metres depth band; earlier handovers
+  omitted it), and it has no server-data tarball because there is no server.
+- **The backup series was pruned to three** (`-09d`, `-10`, `-10b`) and the
+  handovers to one, on both drives — 46 + 4 folders deleted, ~2.7 GB freed
+  per drive. Before deletion, two things that existed *only* in the pruned
+  folders were rescued into `-10b`: the **build hash records for portables
+  1.3–2.5** (`portable/build-records-1.3-2.5/`, the only surviving proof of
+  what those now-deleted binaries were) and the **5 Sep evening handover
+  addendum** (`records/`). The one real loss: intra-day server pulls from
+  5–8 Sep; the retirement capture keeps one per day and the final pull.
+- **The password hashes were removed from every archive on both drives** —
+  see the account under *Operational knowledge*, which this replaces.
 
 **The bundle is no longer the only off-machine copy of the recent work.** The
 four commits that `WellSim-FullBackup-2026-09-09d` flagged as unpushed —
@@ -338,13 +357,23 @@ appeared in the first place.
   `enabled:false`, the page returns 200, 38/38 smoke checks pass and no
   console error appears.
 
-  **Copies still exist in the ARCHIVES on D: and F:** — inside the backup
-  tarballs and the retirement capture — and were deliberately left there:
-  they sit under verified manifests, and the capture is the last record of
-  what that server held. If the hashes must be gone everywhere, those
-  archives have to be rebuilt, not edited in place, or their checksums stop
-  matching. Re-enabling the legacy store now would find no users and no way
-  to register one, which is the intended state.
+  **And on 10 September they were taken out of the archives too.** The
+  9 Sep count of "14 copies" covered the working folder only. A sweep of both
+  drives found the same four hashes in **about 54 folders** — every
+  full-backup and handover folder that had been copied forward, the
+  retirement capture, the recovery kit, two pre-rename `petrosim_*` backups
+  (one different account, `engineer1`), 25 loose `users.json` files, and
+  33 more inside tarballs, including 14 per drive nested *inside* the
+  retirement capture's nightly-history archive where a flat listing could not
+  see them. All of it is gone: 46 backup folders and 4 old handovers pruned,
+  the loose files deleted, and the 9 remaining archives unpacked, purged
+  recursively and repacked with their manifests corrected (the retirement
+  capture carries a `STRIPPED-2026-09-10.txt` saying so). **Verified by a
+  nested-aware scan of every `.tar.gz` on D: and F:: 0 copies in 41 archives,
+  0 loose.** The two drives' recycle bins could not be read and are the one
+  place not checked. Re-enabling the legacy store now would find no users and
+  no way to register one, which is the intended state. Deleting a hash is not
+  revoking a password: anyone who reused theirs elsewhere is unchanged by this.
 
   **The protection now is manual and yours.** Local `data/` and `data-backups/`
   sit on the same disk as the thing they protect — they survive a bad write,
