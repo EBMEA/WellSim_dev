@@ -1,0 +1,211 @@
+#cloud-config
+# WellSim server bootstrap -- Hetzner Cloud CX22 (or CAX11), Ubuntu 24.04 LTS.
+#
+# Paste this into the Hetzner console's "Cloud config" / user-data box when
+# creating the server. It performs steps 3-8 of deploy/README-server-rebuild.md
+# automatically. Read deploy/CUTOVER-wellssim-app.md first -- especially the
+# credential rotation, which must happen BEFORE this server exists.
+#
+# WHAT IT DELIBERATELY DOES NOT DO
+#
+#   1. It does NOT start Caddy. The Caddyfile is installed and validated, but
+#      the service is left stopped. DNS does not point here yet, so starting
+#      Caddy now would send Let's Encrypt an order for a name that resolves
+#      elsewhere, fail, and back off -- with `.app` being HSTS-preloaded, a
+#      failed first order is the difference between a live site and a dark
+#      one. Start Caddy only after the A records move.
+#   2. It does NOT restore data/. Real client cases from two companies are
+#      not in git and must be copied out of band -- see the cutover doc.
+#      The app runs fine with an empty data/; it simply has no saved cases.
+#   3. It does NOT create any account. There is no users.json anywhere any
+#      more, by design. An empty account list is the intended state, not a
+#      fault to repair.
+#
+# AFTER IT FINISHES, /root/BOOTSTRAP-REPORT.txt holds the verification
+# results. Read that before doing anything else.
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - ufw
+  - git
+  - curl
+  - ca-certificates
+  - debian-keyring
+  - debian-archive-keyring
+  - apt-transport-https
+
+users:
+  - name: wellsim
+    system: true
+    shell: /usr/sbin/nologin
+    home: /opt/wellsim
+    create_home: true
+
+write_files:
+  # ---- Caddy: the site config, naming the NEW domain (double s) ----
+  - path: /etc/caddy/Caddyfile
+    permissions: '0644'
+    content: |
+      wellssim.app {
+          reverse_proxy 127.0.0.1:3355
+          log {
+              output file /var/log/caddy/wellsim.access.log {
+                  roll_size 10MB
+                  roll_keep 10
+              }
+          }
+      }
+      www.wellssim.app {
+          redir https://wellssim.app{uri} permanent
+      }
+
+  # ---- the app service ----
+  # NOTE: WELLSIM_ENABLE_LEGACY_CASE_STORE is deliberately ABSENT. That is one
+  # of the two independent halves of the account containment; the other is the
+  # code gate 27ea04e, which is an ancestor of main. Do not add it here.
+  - path: /etc/systemd/system/wellsim.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=WellSim well performance web app
+      After=network.target
+
+      [Service]
+      User=wellsim
+      WorkingDirectory=/opt/wellsim/app
+      ExecStart=/usr/bin/node src/server/server.js
+      Environment=PORT=3355
+      Environment=NODE_ENV=production
+      Restart=always
+      RestartSec=3
+
+      [Install]
+      WantedBy=multi-user.target
+
+  # ---- nightly plaintext snapshot (as the old box ran it) ----
+  - path: /usr/local/bin/wellsim-backup
+    permissions: '0755'
+    content: |
+      #!/bin/sh
+      # Plaintext, on-box nightly snapshot of data/. Survives a bad write,
+      # NOT a lost machine. The encrypted off-box design lives in the repo's
+      # deploy/ directory and was never installed on the old server; decide
+      # deliberately whether this machine runs it.
+      set -eu
+      DEST=/var/backups/wellsim
+      STAMP=$(date -u +%Y-%m-%d)
+      mkdir -p "$DEST"
+      tar czf "$DEST/wellsim-data-$STAMP.tar.gz" -C /opt/wellsim/app data
+      find "$DEST" -name 'wellsim-data-*.tar.gz' -mtime +30 -delete
+
+  - path: /etc/systemd/system/wellsim-backup.service
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=WellSim nightly data snapshot
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/wellsim-backup
+
+  - path: /etc/systemd/system/wellsim-backup.timer
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=WellSim nightly data snapshot at 02:30 UTC
+
+      [Timer]
+      OnCalendar=*-*-* 02:30:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+runcmd:
+  # ---- firewall: SSH + web only. No database port, no 3355 from outside. ----
+  - ufw --force reset
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+
+  # ---- Node 22 LTS from NodeSource (Ubuntu 24.04 ships 18, too old) ----
+  - curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup.sh
+  - bash /tmp/nodesource_setup.sh
+  - apt-get install -y nodejs
+  - rm -f /tmp/nodesource_setup.sh
+
+  # ---- Caddy v2 from the official repo ----
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  - curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list
+  - apt-get update
+  - apt-get install -y caddy
+  - mkdir -p /var/log/caddy
+  - chown caddy:caddy /var/log/caddy
+  - systemctl stop caddy || true
+  - systemctl disable caddy || true
+
+  # ---- the app, from the public repository ----
+  # EBMEA/WellSim_dev is public, so no deploy key is needed. data/, the
+  # workbooks, the ESP catalogue and ALdocs are gitignored and are NOT in
+  # what this clones -- that separation is what makes the repo safe to publish.
+  - git clone --depth 1 https://github.com/EBMEA/WellSim_dev.git /opt/wellsim/app
+  # `pg` is NOT optional: since 713ce46 the server imports it unconditionally
+  # and crash-loops without it, even though no database server is installed.
+  - cd /opt/wellsim/app && npm install --omit=dev
+  - mkdir -p /opt/wellsim/app/data
+  - chown -R wellsim:wellsim /opt/wellsim
+
+  # ---- start the app on loopback only ----
+  - systemctl daemon-reload
+  - systemctl enable --now wellsim.service
+  - systemctl enable --now wellsim-backup.timer
+  - sleep 5
+
+  # ---- verification, written where the operator will find it ----
+  - |
+    {
+      echo "WellSim bootstrap report -- $(date -u +'%Y-%m-%d %H:%M:%SZ')"
+      echo
+      echo "deployed commit: $(git -C /opt/wellsim/app rev-parse --short HEAD) \"$(git -C /opt/wellsim/app log -1 --format=%s)\""
+      echo "node:            $(node --version)"
+      echo "caddy:           $(caddy version 2>/dev/null | head -1)"
+      echo
+      echo "== service =="
+      echo "active:    $(systemctl is-active wellsim)"
+      echo "NRestarts: $(systemctl show wellsim -p NRestarts --value)"
+      echo
+      echo "== containment (BOTH must hold) =="
+      echo "1. API says:  $(curl -s --max-time 10 http://127.0.0.1:3355/api/accounts/status)"
+      echo "   expected:  {\"enabled\":false,\"registrationEnabled\":false,\"mode\":\"legacy-web\"}"
+      printf '2. unit file: '
+      if grep -q 'WELLSIM_ENABLE_LEGACY_CASE_STORE' /etc/systemd/system/wellsim.service; then
+        echo 'FAIL -- the legacy-store flag is present and MUST NOT be'
+      else
+        echo 'OK -- WELLSIM_ENABLE_LEGACY_CASE_STORE absent, as required'
+      fi
+      echo
+      echo "== bind address (must be loopback) =="
+      journalctl -u wellsim --no-pager -n 20 | grep -iE 'bound to|listening' || echo '(no bind line found -- investigate)'
+      echo
+      echo "== module smoke =="
+      cd /opt/wellsim/app && node scripts/module-smoke.mjs --base http://127.0.0.1:3355 2>&1 | tail -3
+      echo
+      echo "== caddy =="
+      echo "Caddyfile validates: $(caddy validate --config /etc/caddy/Caddyfile 2>&1 | tail -1)"
+      echo "caddy is STOPPED on purpose. Start it only after DNS points here:"
+      echo "    systemctl enable --now caddy && journalctl -u caddy -f"
+      echo
+      echo "== still to do, by hand =="
+      echo " - copy data/ from the workstation (real client cases, not in git)"
+      echo " - point wellssim.app (and www, or drop the www block) at this IP at Spaceship"
+      echo " - start caddy, watch the Let's Encrypt order succeed"
+      echo " - .app is HSTS-preloaded: the site is DARK until the cert issues"
+    } > /root/BOOTSTRAP-REPORT.txt 2>&1
+  - cat /root/BOOTSTRAP-REPORT.txt
+
+final_message: "WellSim bootstrap finished after $UPTIME s. Read /root/BOOTSTRAP-REPORT.txt before anything else. Caddy is installed but STOPPED until DNS points here."
