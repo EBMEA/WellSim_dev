@@ -37,8 +37,13 @@ test('docs quote the real test count', () => {
   for (const doc of DOCS) {
     const text = read(doc);
     const scan = text + stripTags(text);
-    // any "<n> tests" claim in a doc must be the real number
-    for (const m of scan.matchAll(/(\d{2,4})\s+(?:unit \+ regression |regression |unit )?tests\b/g)) {
+    // Any "<n> ... tests" claim in a doc must be the real number. The words
+    // between the number and "tests" are not fixed: help.html read "344
+    // regression and security tests passing" while the suite had 345, and an
+    // earlier spelling of this pattern listed the adjectives it knew about, so
+    // "and security" was enough to hide a stale count from the guard meant to
+    // catch exactly that. Allow any short run of words instead.
+    for (const m of scan.matchAll(/(\d{2,4})\s+(?:[A-Za-z][A-Za-z+&-]*\s+){0,4}tests\b/g)) {
       assert.equal(
         Number(m[1]),
         actual,
