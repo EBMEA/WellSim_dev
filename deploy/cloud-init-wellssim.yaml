@@ -20,6 +20,10 @@
 #   3. It does NOT create any account. There is no users.json anywhere any
 #      more, by design. An empty account list is the intended state, not a
 #      fault to repair.
+#   4. It does NOT track a branch. The app is pinned to an exact commit, so
+#      two servers built from this file months apart run identical code. The
+#      checkout leaves a detached HEAD -- that is expected. To deploy newer
+#      work, change the pin below deliberately; do not swap it for `main`.
 #
 # AFTER IT FINISHES, /root/BOOTSTRAP-REPORT.txt holds the verification
 # results. Read that before doing anything else.
@@ -149,11 +153,35 @@ runcmd:
   - systemctl stop caddy || true
   - systemctl disable caddy || true
 
-  # ---- the app, from the public repository ----
+  # ---- the app, from the public repository, PINNED TO A COMMIT ----
   # EBMEA/WellSim_dev is public, so no deploy key is needed. data/, the
   # workbooks, the ESP catalogue and ALdocs are gitignored and are NOT in
   # what this clones -- that separation is what makes the repo safe to publish.
-  - git clone --depth 1 https://github.com/EBMEA/WellSim_dev.git /opt/wellsim/app
+  #
+  # THE COMMIT IS PINNED ON PURPOSE. Cloning a branch would deploy whatever
+  # main happens to be at boot, so two servers built from this same file a
+  # week apart would run different code and nothing would say so. Change the
+  # pin deliberately, and only to a commit whose suite has actually been run.
+  #
+  # THE PIN NECESSARILY LAGS BY ONE COMMIT: a file cannot contain the hash of
+  # the commit that adds it. e2407194 is the commit immediately before the one
+  # that introduced this pin; its tree is the tree `npm test` passed 345/345
+  # on, plus this deploy/ file. Nothing under src/, tests/ or package.json
+  # differs between them.
+  #
+  # Not a shallow clone: --depth 1 cannot check out an arbitrary SHA, and the
+  # whole history is only ~42 MB.
+  - git clone https://github.com/EBMEA/WellSim_dev.git /opt/wellsim/app
+  - git -C /opt/wellsim/app checkout --quiet e2407194f80015926fcd72c045afc63434d57414
+  # Fail loudly rather than silently serving the wrong code.
+  - |
+    WANT=e2407194f80015926fcd72c045afc63434d57414
+    GOT=$(git -C /opt/wellsim/app rev-parse HEAD)
+    if [ "$GOT" != "$WANT" ]; then
+      echo "PIN MISMATCH: wanted $WANT, got $GOT" | tee /root/PIN-MISMATCH.txt
+      systemctl disable --now wellsim 2>/dev/null || true
+      exit 1
+    fi
   # `pg` is NOT optional: since 713ce46 the server imports it unconditionally
   # and crash-loops without it, even though no database server is installed.
   - cd /opt/wellsim/app && npm install --omit=dev
@@ -172,6 +200,8 @@ runcmd:
       echo "WellSim bootstrap report -- $(date -u +'%Y-%m-%d %H:%M:%SZ')"
       echo
       echo "deployed commit: $(git -C /opt/wellsim/app rev-parse --short HEAD) \"$(git -C /opt/wellsim/app log -1 --format=%s)\""
+      echo "pinned to:       e2407194  (detached HEAD is expected, not a fault)"
+      echo "pin verified:    $([ "$(git -C /opt/wellsim/app rev-parse HEAD)" = 'e2407194f80015926fcd72c045afc63434d57414' ] && echo 'OK' || echo 'MISMATCH -- see /root/PIN-MISMATCH.txt')"
       echo "node:            $(node --version)"
       echo "caddy:           $(caddy version 2>/dev/null | head -1)"
       echo
