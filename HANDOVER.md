@@ -1,6 +1,6 @@
 # WellSim — handover
 
-**Live:** none — wellsim.app retired 8 Sep 2026; run locally or use the portable ·
+**Live:** none yet — **relaunching on [wellssim.app](https://wellssim.app)** (note the double s, bought 11 Sep 2026); wellsim.app retired 8 Sep; run locally or use the portable ·
 **Codex comparison:** https://bldrz.net ·
 **Repo:** https://github.com/EBMEA/WellSim_dev · **Manual:** `src/ui/help.html` (served at /help.html by a local run)
 
@@ -62,17 +62,21 @@ Still outstanding:
   `/opt/wellsim` which no longer exists) is all that is left of the app on
   that box. It owns nothing and can log in nowhere; `userdel wellsim` closes
   it whenever it suits, and is the last thing to do there.
-- when the new domain exists: `deploy/README-server-rebuild.md` has the whole
-  rebuild order, and `deploy/Caddyfile.wellsim` is the site block to install.
-  **Every published reference to wellsim.app then needs updating in one pass** —
-  the manual, README, README-PORTABLE, this file, the brochure and the meeting
-  invite in ALdocs.
+- ~~when the new domain exists~~ **it does: `wellssim.app`, 11 September 2026.**
+  See `deploy/CUTOVER-wellssim-app.md` for the launch order,
+  `deploy/cloud-init-wellssim.yaml` to build the box, and
+  `deploy/Caddyfile.wellsim`, which now names the new domain.
+  **Every published reference to wellsim.app still needs updating in one pass** —
+  the manual, README, README-PORTABLE, the brochure and the meeting invite in
+  ALdocs all still print a name that resolves nowhere.
 
 The containment travels with the retirement: the account store was shut when
 the site went down, and any new box must pass the same check before DNS points
 at it — `/api/accounts/status` must report
-`{"enabled":false,"registrationEnabled":false}`. `main` still lacks `27ea04e`
-and must not be deployed anywhere.
+`{"enabled":false,"registrationEnabled":false}`. **`main` now CONTAINS `27ea04e`**
+(verified with `git merge-base --is-ancestor`), so the old blanket ban on
+deploying it is spent — but the check itself still has to pass on the new box
+before DNS points at it.
 
 **The containment held to the end, and it still binds the next box.** While
 the site ran, `/api/accounts/status` reported
@@ -83,18 +87,20 @@ the deployed branch, AND `WELLSIM_ENABLE_LEGACY_CASE_STORE` absent from
 would keep registration closed. Both requirements carry forward verbatim to
 whatever machine serves the new domain.
 
-**`main` MUST NOT BE DEPLOYED ANYWHERE.** `27ea04e` is not on `main`, so a
-fresh box built from `main` would reopen public registration on a machine
-nobody is watching yet. The check in `deploy/README-server-rebuild.md` has to
-pass before any DNS points at anything.
+**`main` IS NOW SAFE TO DEPLOY, and earlier revisions of this file said the
+opposite.** `27ea04e` was not on `main` until the 10 September merge; it is an
+ancestor now, so a fresh box built from `main` does **not** reopen public
+registration. The check in `deploy/README-server-rebuild.md` still has to pass
+before any DNS points at anything — the gate being in the code is one of the
+two halves, not both.
 
 **Current working tree:** clean, on `main`, **345/345 tests passing** — re-run
 on 10 Sep against the merged tree, not carried forward as a claim. The
 separate `bldrz` database has migrations `0001`–`0003`, with least-privilege
 roles and an opt-in, bounded PostgreSQL connection pool.
 
-**Where the work sits, 10 September 2026:** `main` at `3a0a720`
-(193 commits), pushed and in sync with a **new** remote. The feature branch
+**Where the work sits, 11 September 2026:** `main` at `23ecd4f`
+(199 commits), pushed and in sync with a **new** remote. The feature branch
 is gone — merged and retired the same day.
 
 - `merge/gas-forecast-into-v2` **fast-forwarded into `main`**. `main` was a
@@ -109,8 +115,8 @@ is gone — merged and retired the same day.
 
 | remote | repository | `main` |
 | --- | --- | --- |
-| `wellsim-dev` | `EBMEA/WellSim_dev` | `3a0a720` — **current**, default branch |
-| `origin` | `aleimam/wellsim` | `de2393c` — 114 commits behind |
+| `wellsim-dev` | `EBMEA/WellSim_dev` | `23ecd4f` — **current**, default branch |
+| `origin` | `aleimam/wellsim` | `de2393c` — 120 commits behind |
 | `ebmea` | `EBMEA/wellssim` | untouched (note the double `s`) |
 
 `origin` has received **none** of this work, and its copy of the feature
@@ -128,6 +134,40 @@ the systemd units as they ran, and this file narrates the infrastructure and
 the credential purge in detail. None of it is a credential. The gitignore
 that keeps `data/`, the workbooks, the ESP catalogue and `ALdocs/` out of git
 is what makes that safe, and it was re-checked.
+
+**11 September 2026 — the relaunch begins.** The owner bought
+**`wellssim.app`** from Spaceship (note the DOUBLE S; the retired name is
+`wellsim.app`, single s, still registered and still empty at Cloudflare).
+Checked the same day:
+
+- `wellssim.app` resolves to Spaceship parking (`34.216.117.25`,
+  `54.149.79.189`, AWS us-west-2) on NS `launch1`/`launch2.spaceship.net`.
+  Port 80 answers 200 with a parking page; **443 times out** and `www` does
+  not resolve. No MX, no TXT.
+- **`.app` is on the HSTS preload list.** Browsers force HTTPS for it with no
+  click-through, so that parking page is invisible in practice and the name
+  is dark until a certificate issues. There is no http-only state to test in.
+- `deploy/Caddyfile.wellsim` named the retired domain and would have asked
+  Let's Encrypt to cover a dead name. It now names `wellssim.app`.
+
+**The server is not created yet, and this workstation cannot create it.**
+There is no `hcloud` CLI, no `HCLOUD_TOKEN`, no `~/.config/hcloud` and an
+empty `~/.ssh` — the deliberate outcome of the 8–9 September purge. Creating
+it needs the owner at the Hetzner console.
+
+- **Plan: Hetzner Cloud CX22** (2 vCPU / 4 GB / 40 GB, Falkenstein or
+  Nuremberg), or `CAX11` on ARM. The app needs **Node and Caddy only** — the
+  database boundary is disabled, though `pg` must still be installed or the
+  server crash-loops.
+- `deploy/cloud-init-wellssim.yaml` performs the build order as user-data and
+  writes its own verification to `/root/BOOTSTRAP-REPORT.txt`. It clones the
+  public repo **pinned to an exact commit** and aborts the boot on mismatch;
+  it leaves **Caddy stopped** until DNS moves; it restores no `data/` and
+  creates no account, both on purpose.
+- **Rotate the Hetzner and Cloudflare tokens first.** They were deleted here
+  but never revoked, and `wellsim-deploy` is still in the old box's
+  `authorized_keys`. Building the new machine is the moment to close that so
+  the two never share a credential.
 
 **What was actually run on 10 September, and what it showed.** None of this
 is carried forward from an earlier entry:

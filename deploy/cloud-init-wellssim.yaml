@@ -164,7 +164,7 @@ runcmd:
   # pin deliberately, and only to a commit whose suite has actually been run.
   #
   # THE PIN NECESSARILY LAGS BY ONE COMMIT: a file cannot contain the hash of
-  # the commit that adds it. e2407194 is the commit immediately before the one
+  # the commit that adds it. 23ecd4f5 is the commit immediately before the one
   # that introduced this pin; its tree is the tree `npm test` passed 345/345
   # on, plus this deploy/ file. Nothing under src/, tests/ or package.json
   # differs between them.
@@ -172,10 +172,10 @@ runcmd:
   # Not a shallow clone: --depth 1 cannot check out an arbitrary SHA, and the
   # whole history is only ~42 MB.
   - git clone https://github.com/EBMEA/WellSim_dev.git /opt/wellsim/app
-  - git -C /opt/wellsim/app checkout --quiet e2407194f80015926fcd72c045afc63434d57414
+  - git -C /opt/wellsim/app checkout --quiet 23ecd4f523749ff040cb45d6836e954483def2d9
   # Fail loudly rather than silently serving the wrong code.
   - |
-    WANT=e2407194f80015926fcd72c045afc63434d57414
+    WANT=23ecd4f523749ff040cb45d6836e954483def2d9
     GOT=$(git -C /opt/wellsim/app rev-parse HEAD)
     if [ "$GOT" != "$WANT" ]; then
       echo "PIN MISMATCH: wanted $WANT, got $GOT" | tee /root/PIN-MISMATCH.txt
@@ -200,8 +200,8 @@ runcmd:
       echo "WellSim bootstrap report -- $(date -u +'%Y-%m-%d %H:%M:%SZ')"
       echo
       echo "deployed commit: $(git -C /opt/wellsim/app rev-parse --short HEAD) \"$(git -C /opt/wellsim/app log -1 --format=%s)\""
-      echo "pinned to:       e2407194  (detached HEAD is expected, not a fault)"
-      echo "pin verified:    $([ "$(git -C /opt/wellsim/app rev-parse HEAD)" = 'e2407194f80015926fcd72c045afc63434d57414' ] && echo 'OK' || echo 'MISMATCH -- see /root/PIN-MISMATCH.txt')"
+      echo "pinned to:       23ecd4f5  (detached HEAD is expected, not a fault)"
+      echo "pin verified:    $([ "$(git -C /opt/wellsim/app rev-parse HEAD)" = '23ecd4f523749ff040cb45d6836e954483def2d9' ] && echo 'OK' || echo 'MISMATCH -- see /root/PIN-MISMATCH.txt')"
       echo "node:            $(node --version)"
       echo "caddy:           $(caddy version 2>/dev/null | head -1)"
       echo
