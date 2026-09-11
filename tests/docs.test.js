@@ -22,6 +22,10 @@ const DOCS = [
   'HANDOVER.md',
   'docs/user-guide.md',
   'src/ui/help.html',
+  // added 11 Sep 2026: the brochure went out claiming 302 tests while the
+  // suite had 345, because it lived in gitignored ALdocs/ as a PDF with no
+  // source and nothing could check it. Source and output are tracked now.
+  'docs/brochure/WellSim-Brochure.html',
 ];
 
 /** Every test( call across the suite — what `npm test` will report. */

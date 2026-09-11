@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WellSim</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: 210mm; height: 297mm;
+    background: #FFFDF8;
+    color: #241E14;
+    font-family: "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  :root {
+    --gold: #9A7B3C;
+    --ink: #241E14;
+    --muted: #6B6355;
+    --rule: #E3DBCB;
+    --card: #FFFFFF;
+  }
+  .page { padding: 14mm 14mm 0; height: 297mm; display: flex; flex-direction: column; }
+
+  /* ---------- header ---------- */
+  .eyebrow {
+    font-size: 8.2pt; letter-spacing: .16em; font-weight: 700;
+    color: var(--gold); text-transform: uppercase;
+  }
+  .masthead { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; }
+  h1 { font-size: 34pt; line-height: 1; margin: 3mm 0 2.5mm; letter-spacing: -.02em; font-weight: 700; }
+  h1 .sim { color: var(--gold); }
+  .lede { font-size: 10.4pt; line-height: 1.45; max-width: 112mm; color: #3A3226; }
+  .lede em { font-style: normal; color: var(--ink); font-weight: 600; }
+
+  .chartbox { width: 52mm; flex: none; }
+  .chartbox figcaption {
+    font-size: 6.4pt; letter-spacing: .11em; text-transform: uppercase;
+    color: var(--gold); font-weight: 700; text-align: right; margin-bottom: 1.5mm;
+  }
+
+  /* ---------- modules ---------- */
+  .sectionhead {
+    display: flex; align-items: baseline; gap: 3mm;
+    margin: 7mm 0 3.5mm; padding-bottom: 1.8mm; border-bottom: .5pt solid var(--rule);
+  }
+  .sectionhead h2 { font-size: 13pt; margin: 0; font-weight: 700; letter-spacing: -.01em; }
+  .sectionhead p { margin: 0; font-size: 8.6pt; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3.5mm; }
+  .card {
+    background: var(--card); border: .5pt solid var(--rule); border-radius: 1.6mm;
+    padding: 4mm 4.2mm 3.4mm; position: relative;
+  }
+  .card .num {
+    font-size: 8pt; font-weight: 700; color: var(--gold);
+    letter-spacing: .08em; display: block; margin-bottom: 1.2mm;
+  }
+  .card h3 { font-size: 10.4pt; margin: 0 0 1.8mm; font-weight: 700; }
+  .card p { margin: 0; font-size: 8.5pt; line-height: 1.42; color: #3A3226; }
+  .tags { margin-top: 2.8mm; display: flex; flex-wrap: wrap; gap: 1.4mm; }
+  .tag {
+    font-size: 6.6pt; letter-spacing: .04em; color: var(--gold);
+    border: .5pt solid #E8DCC2; background: #FDF8EE;
+    border-radius: 6pt; padding: .7mm 1.8mm; white-space: nowrap;
+  }
+
+  /* ---------- physics ---------- */
+  .stats { display: flex; gap: 6mm; margin: 0 0 3mm; }
+  .stat .n { font-size: 19pt; font-weight: 700; color: var(--gold); line-height: 1; letter-spacing: -.02em; }
+  .stat .l { font-size: 7.2pt; color: var(--muted); margin-top: .8mm; line-height: 1.3; }
+  .physics { display: grid; grid-template-columns: 1fr 1fr; gap: 1.6mm 5mm; }
+  .physics li { font-size: 8.4pt; line-height: 1.4; color: #3A3226; }
+  ul.physics { list-style: none; margin: 0; padding: 0; }
+  ul.physics li { padding-left: 4.2mm; position: relative; }
+  ul.physics li::before {
+    content: ""; position: absolute; left: 0; top: 1.5mm;
+    width: 1.6mm; height: 1.6mm; border-radius: 50%; background: var(--gold); opacity: .55;
+  }
+
+  /* ---------- delivery band ---------- */
+  .band {
+    margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 5mm; border-top: .5pt solid var(--rule); padding: 4mm 0 0;
+  }
+  .band h4 {
+    font-size: 7.4pt; letter-spacing: .13em; text-transform: uppercase;
+    color: var(--gold); margin: 0 0 1.4mm; font-weight: 700;
+  }
+  .band p { margin: 0; font-size: 8.3pt; line-height: 1.4; color: #3A3226; }
+  .band code { font-family: inherit; font-weight: 600; color: var(--ink); }
+
+  footer {
+    margin-top: 4mm; padding: 3mm 0 5mm; border-top: 1.2pt solid var(--ink);
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 8.4pt;
+  }
+  footer .brand { font-weight: 700; }
+  footer .contact { color: var(--muted); }
+  footer .contact b { color: var(--gold); font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="masthead">
+    <div>
+      <div class="eyebrow">Petroleum well-performance software</div>
+      <h1>Well<span class="sim">Sim</span></h1>
+      <p class="lede">
+        Nodal analysis, connected reserves and production forecast, for oil, water
+        and gas wells — the engineering method of the <em>M.&nbsp;El-Ashry workbooks</em>,
+        rebuilt as explicit, tested software.
+      </p>
+    </div>
+
+    <figure class="chartbox">
+      <figcaption>Nodal analysis</figcaption>
+      <svg viewBox="0 0 200 140" width="100%" role="img" aria-label="IPR and VLP curves crossing at the operating point">
+        <rect x="0" y="0" width="200" height="140" fill="#fff" stroke="#E3DBCB" stroke-width="1"/>
+        <g stroke="#F0E9DA" stroke-width=".8">
+          <line x1="0" y1="35" x2="200" y2="35"/><line x1="0" y1="70" x2="200" y2="70"/>
+          <line x1="0" y1="105" x2="200" y2="105"/>
+          <line x1="50" y1="0" x2="50" y2="140"/><line x1="100" y1="0" x2="100" y2="140"/>
+          <line x1="150" y1="0" x2="150" y2="140"/>
+        </g>
+        <!-- IPR: falls with rate -->
+        <path d="M12,18 C60,30 110,62 188,122" fill="none" stroke="#9A7B3C" stroke-width="2.2"/>
+        <!-- VLP: rises with rate -->
+        <path d="M12,122 C60,104 96,84 188,30" fill="none" stroke="#2E6B6B" stroke-width="2.2"/>
+        <circle cx="112" cy="70" r="4.2" fill="#241E14"/>
+        <text x="16" y="30" font-size="9" fill="#9A7B3C" font-family="sans-serif" font-weight="700">IPR</text>
+        <text x="160" y="26" font-size="9" fill="#2E6B6B" font-family="sans-serif" font-weight="700">VLP</text>
+        <text x="6" y="136" font-size="7.5" fill="#6B6355" font-family="sans-serif">Rate, q</text>
+        <text x="4" y="12" font-size="7.5" fill="#6B6355" font-family="sans-serif">Pwf</text>
+      </svg>
+    </figure>
+  </div>
+
+  <div class="sectionhead">
+    <h2>Four modules, one well model</h2>
+    <p>every module reads the same calibrated well</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <span class="num">01</span>
+      <h3>Well model — nodal analysis</h3>
+      <p>The operating point for oil, water and gas wells under natural flow, gas lift
+         or a full ESP design — pump matching, stage and wear back-calculation, and a
+         design proof against the curve.</p>
+      <div class="tags"><span class="tag">123 ESP pumps · 4 catalogues</span><span class="tag">Producer + injector</span></div>
+    </div>
+
+    <div class="card">
+      <span class="num">02</span>
+      <h3>Reserve estimate</h3>
+      <p>Connected volumes by material balance — Havlena–Odeh, static-gauge and
+         reservoir-limit for oil; p/Z from production data, SITHP or memory gauges for
+         gas, condensate on a total-gas basis.</p>
+      <div class="tags"><span class="tag">STOIIP · GIIP</span><span class="tag">p/Z tank</span></div>
+    </div>
+
+    <div class="card">
+      <span class="num">03</span>
+      <h3>Production forecast</h3>
+      <p>Saturation-tracking material balance coupled to the nodal model — Tarner and
+         Walsh's generalized MB with volatilized oil R<sub>v</sub>; history and forecast
+         on one calendar axis.</p>
+      <div class="tags"><span class="tag">Tarner</span><span class="tag">Walsh (Rv)</span><span class="tag">EUR</span></div>
+    </div>
+
+    <div class="card">
+      <span class="num">04</span>
+      <h3>Artificial-lift selection</h3>
+      <p>Screen ESP, gas lift, sucker rod, jet pump and PCP against their envelopes
+         across the well's life, then rank the survivors by UDC economics — the
+         cheapest applicable method.</p>
+      <div class="tags"><span class="tag">ESP</span><span class="tag">Gas lift</span><span class="tag">Rod</span><span class="tag">Jet</span><span class="tag">PCP</span></div>
+    </div>
+  </div>
+
+  <div class="sectionhead">
+    <h2>Explicit, traceable, and tested</h2>
+    <p>the physics you can point at</p>
+  </div>
+
+  <!-- The number and its noun are kept on separate source lines on purpose.
+       tests/docs.test.js strips tags and then looks for "<n> ... tests"; with
+       the divs on one line that collapses to "345unit tests" and the claim
+       becomes invisible to the guard. This brochure went out for a week with a
+       count 43 short of the real one, because it was a PDF in gitignored
+       ALdocs/ with no source and nothing could check it. Do not reflow these
+       three lines.
+       (Stating the old number here would itself trip the guard, which is the
+       system working as intended.) -->
+  <div class="stats">
+    <div class="stat">
+      <div class="n">345</div>
+      <div class="l">unit tests,<br>all green</div>
+    </div>
+    <div class="stat">
+      <div class="n">43/43</div>
+      <div class="l">golden-case<br>sweep</div>
+    </div>
+    <div class="stat">
+      <div class="n">9+ digits</div>
+      <div class="l">workbook parity against<br>the source workbooks</div>
+    </div>
+  </div>
+
+  <ul class="physics">
+    <li>Composite Vogel IPR with a Darcy-from-K default J, calibrated to a test.</li>
+    <li>Two pressure records — an anchor and a working reservoir pressure.</li>
+    <li>Brill &amp; Beggs Z everywhere — explicit, no goal-seek.</li>
+    <li>Unit-aware boundaries — stb/d, MMscf/d, psi, kept canonical.</li>
+    <li>Well-head temperature always calculated by Ramey, not typed.</li>
+    <li>Gas impurities are inputs wherever gas properties appear.</li>
+  </ul>
+
+  <div class="band">
+    <div>
+      <h4>On the web</h4>
+      <p>Open <code>wellssim.app</code> — an installable app that keeps working offline once loaded.</p>
+    </div>
+    <div>
+      <h4>Portable app</h4>
+      <p>A single signed <code>.exe</code> — no install, USB-friendly, each case a folder beside it.</p>
+    </div>
+    <div>
+      <h4>Your data stays yours</h4>
+      <p>Free use needs no account; Save and Open keep every case a file you control.</p>
+    </div>
+  </div>
+
+  <footer>
+    <span class="brand">WellSim — well-performance analysis</span>
+    <span class="contact">by M. El-Ashry · <b>wellssim.app</b></span>
+  </footer>
+
+</div>
+</body>
+</html>
