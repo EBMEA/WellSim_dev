@@ -25,3 +25,9 @@ backup/
 # portable build outputs — the exe is ~94 MB and is rebuilt by build.ps1
 /WellSim.exe
 /build/
+
+# Brochure PDF is build output, regenerated from the HTML beside it.
+# It is also blocked by the "no proprietary vendor material" guard in
+# tests/docs.test.js, which forbids ALL tracked .pdf so vendor catalogues
+# cannot slip into a public repo. See docs/brochure/README.md.
+docs/brochure/*.pdf

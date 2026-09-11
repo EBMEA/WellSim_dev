@@ -1,7 +1,16 @@
 # The WellSim brochure
 
-`WellSim-Brochure.html` is the **source**. `WellSim-Brochure.pdf` is what you
-hand someone — one A4 page, regenerated from the HTML, not edited by hand.
+`WellSim-Brochure.html` is the **source**, and it is tracked in git.
+`WellSim-Brochure.pdf` is what you hand someone — one A4 page, regenerated
+from the HTML, not edited by hand.
+
+**The PDF is deliberately NOT tracked.** `tests/docs.test.js` forbids every
+tracked `.pdf` so that vendor ESP catalogues and client workbooks cannot slip
+into what is now a public repository, and that blanket rule is worth more than
+the convenience of having the rendered file in git. It was briefly committed
+on 11 September 2026 and the guard caught it, correctly. Regenerate it from
+the HTML instead — one command, below — and keep `docs/brochure/*.pdf` in
+`.gitignore` where it is.
 
 ## Why this folder exists
 
