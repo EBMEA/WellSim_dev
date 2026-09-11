@@ -12,10 +12,17 @@
 > Caddy change. Do not treat anything below as live infrastructure for this
 > app.
 >
-> To stand the site up again on a new domain, follow
-> **deploy/README-server-rebuild.md** — it has the rebuild order, the captured
-> unit and Caddy files, and the containment check that must pass before DNS
-> points anywhere. The procedure below remains accurate as the DEPLOY METHOD
+> **THE NEW DOMAIN EXISTS: `wellssim.app`** (note the DOUBLE S), bought from
+> Spaceship on 11 September 2026. To stand the site up on it, follow
+> **deploy/CUTOVER-wellssim-app.md** — the launch order, written for this
+> domain and for DNS at Spaceship. **deploy/README-server-rebuild.md** still
+> has the build steps and the captured unit files, but its DNS and cutover
+> halves describe a migration off the old box that no longer applies.
+> **deploy/cloud-init-wellssim.yaml** builds the machine as user-data.
+>
+> Every `wellsim.app` below is **history** and is deliberately left alone: it
+> is the name that was retired, and rewriting it would make this record false.
+> The procedure below remains accurate as the DEPLOY METHOD
 > (git archive → scp → tar → npm install → restart); only the host is gone.
 
 This documented the **live production setup** until 8 September 2026, and is

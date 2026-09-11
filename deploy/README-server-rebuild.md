@@ -1,5 +1,19 @@
 # Rebuilding the WellSim server from scratch
 
+> **THE DOMAIN IN THIS FILE IS THE OLD ONE. Read
+> [CUTOVER-wellssim-app.md](CUTOVER-wellssim-app.md) first.**
+>
+> Every `wellsim.app` below is **history** — it is the name this capture was
+> taken from, and it is deliberately not rewritten, because rewriting it would
+> make an 8 September record of a live machine describe a domain that did not
+> exist until the 11th. WellSim relaunches on **`wellssim.app`** (double s).
+>
+> The build order in *Rebuild order* still applies as written. The DNS and
+> cutover sections do not: there is nothing left to migrate, and DNS is at
+> Spaceship rather than Cloudflare. `Caddyfile.wellsim` beside this file has
+> already been updated to the new name — install that, not the block quoted
+> here.
+
 Captured from the live Hetzner box (`91.98.23.255`) on **8 September 2026**,
 ahead of the planned move to a new server. Everything in this directory that
 is named below was pulled **verbatim** from the running machine and verified
