@@ -1,0 +1,38 @@
+---
+# cPanel Git Version Control deployment.
+#
+# With this file at the repository root, the "Deploy HEAD Commit" button in
+# cPanel → Git™ Version Control runs the tasks below. Deploying then needs no
+# SSH, no terminal and no pasted command: Update from Remote, then Deploy.
+#
+# WHY THIS IS SO SHORT. Two facts about this app make deployment almost empty:
+#
+#   1. The repository IS the application directory. Passenger runs the app from
+#      /home/<user>/wellsim, which is the same path Git Version Control clones
+#      into, so there is nothing to copy anywhere.
+#   2. The server has NO RUNTIME DEPENDENCIES. Since the PostgreSQL boundary
+#      was removed on 12 September 2026, package.json declares no `dependencies`
+#      at all — the server is Node built-ins only. So there is no npm install
+#      step, and no virtualenv to activate to run one.
+#
+# All that is left is telling Passenger to pick up the new code.
+#
+# RESTART. Passenger watches tmp/restart.txt and restarts the application when
+# its timestamp changes. If a deploy ever appears to do nothing — the site still
+# serving the previous commit — use Setup Node.js App → Stop App → Start App,
+# which is the reliable form on this host and the one that worked on 12 Sep.
+#
+# WHAT THIS DELIBERATELY DOES NOT DO:
+#   - It does not touch data/. Client cases are not in git and must never be
+#     overwritten by a deploy.
+#   - It does not set any environment variable. In particular it must never set
+#     WELLSIM_ENABLE_LEGACY_CASE_STORE: its absence is half of the account
+#     containment, and a deploy file is exactly the wrong place to weaken that.
+#   - It does not run the test suite. Tests run before a commit is pushed, not
+#     on a production host that has no dev dependencies installed.
+deployment:
+  tasks:
+    - export APPDIR=$HOME/wellsim
+    - /bin/mkdir -p $APPDIR/tmp
+    - /bin/mkdir -p $APPDIR/data
+    - /bin/touch $APPDIR/tmp/restart.txt
