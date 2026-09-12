@@ -105,9 +105,6 @@ when a supported case store reports itself available:
 - [docs/deploy.md](docs/deploy.md) — internet deployment (Render + custom domain
   DNS, or a VPS with nginx/certbot); `render.yaml` and `Dockerfile` are in the
   repo root.
-- [docs/architecture/README.md](docs/architecture/README.md) — the v2 platform
-  boundaries, shared domain model, module contract, tenant security and
-  incremental migration plan.
 
 A standalone portable build (`WellSim.exe` — no install, cases saved beside the
 exe) is built from THIS repo by `build.ps1` — see

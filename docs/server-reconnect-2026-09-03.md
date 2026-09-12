@@ -296,9 +296,9 @@ What still stands in the way, from the 2 September audit's own gate: there is
 says to deploy to staging first, or to production only if the absence of
 staging is *explicitly accepted*. That acceptance has not been given.
 
-When a release is authorised, follow the recorded sequence in
-[`architecture/infrastructure-audit-2026-09-02.md`](architecture/infrastructure-audit-2026-09-02.md)
-(§ *Recovery and deployment gate*, steps 1–9) and the mechanics in
+When a release is authorised, follow the recorded sequence in `HANDOVER.md`
+(the retirement and containment sections — the architecture note this used to
+cite was removed on 12 September 2026) and the mechanics in
 [`deploy.md`](deploy.md) § *Deploy a new version* — replacing every
 `-i ~/.ssh/wellsim_hetzner` with the current identity, and remembering that the
 tar deploy **overwrites but never deletes**.

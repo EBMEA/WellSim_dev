@@ -464,7 +464,6 @@ appeared in the first place.
   not a lost machine. The full-project backups to D: and F: are the off-machine
   copy, and they only exist when someone takes one. The script and units are
   preserved in `deploy/` so the timer can be reinstated verbatim on a new box.
-  See also **docs/architecture/infrastructure-audit-2026-09-02.md**.
 - **Sessions are in-memory.** Any restart signs users out. Cases on disk are
   unaffected. This is fine and expected; do not treat it as a bug report.
 - **PostgreSQL 16.15 is installed for the `bldrz.net` comparison environment.**
@@ -704,8 +703,6 @@ appeared in the first place.
   gotcha that costs the most time: Git Bash's `ssh` cannot see the Windows
   ssh-agent, so use `C:\Windows\System32\OpenSSH\ssh.exe`. Everything below
   therefore describes the key still in use.
-
-  See **docs/architecture/infrastructure-audit-2026-09-02.md** for why.
 
   **That key no longer exists on this workstation.** It and its F: backup were
   deleted on 8 Sep 2026 with the rest of the server credentials — see the

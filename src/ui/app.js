@@ -3491,34 +3491,49 @@ function applyCase(c) {
   switchGasIpr();
 }
 
+// The export contract in export.js knows nothing about this page; these three
+// functions are the whole bridge. Written to docs/specs/export-contract.md §6,
+// which defines the fieldMeta shape the CSV and workbook labelling depends on.
+
+// Harvest a human label and unit for every addressable control, so an exported
+// CSV reads "FTHP / psi" rather than "oil-thpPsi". The markup puts the unit in
+// a .unit span inside the label, so the label's own text is its first child —
+// taking labelEl.textContent instead would glue the unit onto the end of every
+// label. Section is the owning panel, which is the well tab the field belongs
+// to; fields outside a panel are reported against the case as a whole.
 function exportFieldMeta() {
-  const metadata = {};
-  document.querySelectorAll('main input[id], main select[id]').forEach((el) => {
-    const row = el.closest('.frow');
-    const labelEl = row?.querySelector('label');
-    const unit = labelEl?.querySelector('.unit')?.textContent?.trim() ?? '';
-    const label = labelEl?.firstChild?.textContent?.trim() || el.id;
-    const panel = el.closest('.panel')?.id?.replace(/^panel-/, '') || 'case';
-    metadata[el.id] = { label, unit, section: panel, valueType: unit ? 'number' : 'text' };
-  });
-  return metadata;
+  const meta = {};
+  for (const control of document.querySelectorAll('main input[id], main select[id]')) {
+    const label = control.closest('.frow')?.querySelector('label');
+    const unit = label?.querySelector('.unit')?.textContent?.trim() ?? '';
+    meta[control.id] = {
+      label: label?.firstChild?.textContent?.trim() || control.id,
+      unit,
+      section: control.closest('.panel')?.id?.replace(/^panel-/, '') || 'case',
+      valueType: unit ? 'number' : 'text',
+    };
+  }
+  return meta;
 }
 
+// export.js is a plain script rather than a module, so on a bad deploy it can
+// simply be absent. Say so plainly instead of failing on undefined.
 function caseExportArtifact(formatId, baseName) {
-  if (!globalThis.WellSimExport) throw new Error('export service did not load');
-  return globalThis.WellSimExport.createArtifact(collectCase(), formatId, {
-    baseName,
-    fieldMeta: exportFieldMeta(),
-  });
+  const exporter = globalThis.WellSimExport;
+  if (!exporter) throw new Error('export service did not load');
+  return exporter.createArtifact(collectCase(), formatId, { baseName, fieldMeta: exportFieldMeta() });
 }
 
+// Last-resort save path: no File System Access API, no share sheet. The object
+// URL is released on a timer because revoking it synchronously after click()
+// races the browser's own read of the blob in some versions.
 function downloadArtifact(artifact) {
-  const blob = new Blob([artifact.content], { type: artifact.mediaType });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = artifact.filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  const url = URL.createObjectURL(new Blob([artifact.content], { type: artifact.mediaType }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = artifact.filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 // Save as / Open are LOCAL file operations and never involve the server.
@@ -3670,20 +3685,36 @@ function acctUi() {
   if (signout) signout.style.display = portable ? 'none' : '';
 }
 
+// Ask the server whether it offers a case store at all. Written to the account
+// gate in docs/specs/case-portability-and-account-gate.md §4: the UI must infer
+// availability from THIS answer and nothing else — not from a stored session,
+// not from the build, not from whether a previous call succeeded.
+//
+// Every failure path therefore leaves the store hidden. An old server, an
+// offline PWA start, a proxy returning HTML: all of them mean "no store", which
+// is the safe reading. Showing a sign-in that cannot work is the harmful one.
 async function acctLoadCapabilities() {
   try {
-    const res = await fetch('/api/accounts/status', {
+    const response = await fetch('/api/accounts/status', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: '{}',
     });
-    const status = await res.json();
-    if (!status.error) acctCapabilities = status;
-  } catch { /* old/offline server: leave the legacy store hidden */ }
+    const reported = await response.json();
+    if (!reported.error) acctCapabilities = reported;
+  } catch {
+    /* unreachable or not JSON — keep the store hidden */
+  }
 
+  // If the store has gone away, drop any session we were still holding rather
+  // than leaving the page looking signed in to something that no longer exists.
   if (!acctCapabilities.enabled && acct) {
     acct = null;
-    try { localStorage.removeItem('wellsimAcct'); } catch { /* storage unavailable */ }
+    try {
+      localStorage.removeItem('wellsimAcct');
+    } catch {
+      /* storage unavailable */
+    }
   }
   acctUi();
 }

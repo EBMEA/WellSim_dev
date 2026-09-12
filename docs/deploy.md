@@ -316,8 +316,10 @@ OUTSIDE `/opt/wellsim/app`, so re-extracting or wiping the app directory should
 not take the archives with it. It is still the SAME DISK: it can survive a bad
 write, bad deploy or accidental app-directory delete, not a lost server. The
 command above is still the off-box pull, and is the one that actually protects
-you. Recovery and deployment evidence is recorded in
-[infrastructure-audit-2026-09-02.md](architecture/infrastructure-audit-2026-09-02.md).
+you. The recovery and deployment evidence that used to be recorded alongside
+this lived in the v2 architecture notes, removed on 12 September 2026 with the
+subsystem they described; `HANDOVER.md` carries the same account of what was
+done to that machine.
 
 ## Access logs
 
