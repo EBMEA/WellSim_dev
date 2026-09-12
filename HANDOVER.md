@@ -94,7 +94,7 @@ registration. The check in `deploy/README-server-rebuild.md` still has to pass
 before any DNS points at anything — the gate being in the code is one of the
 two halves, not both.
 
-**Current working tree:** clean, **335/335 tests passing**. The PostgreSQL
+**Current working tree:** clean, **343/343 tests passing**. The PostgreSQL
 tenancy foundation — `db/`, `src/server/database.js` and their tests — was
 removed on 12 Sep; it was dormant in production (`WELLSIM_DATABASE_ENABLED`
 was never set), and the fourteen checks covering it went with it.
@@ -288,7 +288,7 @@ place of GoalSeek loops. Both are recorded in the manual under *Workbook
 deviations*.
 
 ~8,900 lines of JavaScript across 6 core domains (`pvt`, `vlp`, `ipr`,
-`nodal`, `reserve`, `solvers`), 33 test files.
+`nodal`, `reserve`, `solvers`), 34 test files.
 
 ## 2. Running it
 
@@ -301,7 +301,7 @@ The web server uses Node built-ins plus `pg` for opt-in PostgreSQL. The UI is
 plain HTML/JS. Plotly is the single external asset, from a CDN.
 
 ```bash
-npm test                          # 335 unit, regression and security tests
+npm test                          # 343 unit, regression and security tests
 node scripts/validation-sweep.mjs # 43 physics checks against analytic answers
 ```
 
@@ -357,7 +357,7 @@ src/server/api.js    every endpoint; the UI's only contract. TWO sensitivity
 src/server/server.js static file serving, security headers, case database, auth
 src/ui/              index.html · app.js · style.css · help.html (the manual)
 docs/                deploy.md · user-guide.md · equations.md
-tests/               33 files — workbook cell pins, physics regressions, and
+tests/               34 files — workbook cell pins, physics regressions, and
                      docs.test.js, which fails when documentation drifts from
                      the code (stale counts, removed endpoints, an unversioned
                      service worker)

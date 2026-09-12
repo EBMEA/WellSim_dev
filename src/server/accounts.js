@@ -17,19 +17,42 @@ const DATA_DIR = process.env.WELLSIM_DATA_DIR ?? path.join(process.cwd(), 'data'
 const usersFile = () => path.join(DATA_DIR, 'users.json');
 const casesRoot = () => path.join(DATA_DIR, 'cases');
 
-// This JSON store predates the v2 tenant model. It is deliberately OFF by
-// default: the company slug chosen during registration is not proof of
-// company membership, so exposing it publicly would let a new account join
-// an existing company namespace. Keep the code only as a short-lived,
-// explicitly enabled compatibility path while the PostgreSQL/RBAC store is
-// built. Visitor calculations and Save as / Open do not use this switch.
-export const legacyCaseStoreEnabled = () =>
-  process.env.WELLSIM_ENABLE_LEGACY_CASE_STORE === '1';
+/* The account gate. Specified in
+ * docs/specs/case-portability-and-account-gate.md §4 — read that before
+ * changing anything here.
+ *
+ * WHY THIS STORE IS SHUT. Registration asks the visitor to type a company
+ * name, and a typed name is not evidence of belonging to that company.
+ * Leave registration open and a stranger picks an existing customer's name
+ * and lands inside their namespace. Nothing here verifies identity, so
+ * nothing here may be reachable until something does.
+ *
+ * TWO INDEPENDENT SWITCHES, and the second is the point. Enabling the store
+ * does NOT enable registration: an operator must also set an invite word.
+ * One switch would mean a single careless environment variable reopens public
+ * sign-up on a live site.
+ *
+ * Visitor calculations, the browser autosave and Save as / Open are outside
+ * this gate entirely and must stay that way — the app is fully usable with
+ * the store shut, which is how it runs in production today.
+ */
+const caseStoreEnabled = () => process.env.WELLSIM_ENABLE_LEGACY_CASE_STORE === '1';
+const registrationOpen = () => caseStoreEnabled() && Boolean(process.env.WELLSIM_INVITE);
 
-const disabled = () => ({
-  error: 'server case storage is temporarily unavailable — use Save as / Open',
+// Kept as a machine-readable code so the UI can distinguish "shut" from
+// "broken" without parsing prose.
+const storeShut = () => ({
+  error: 'server-side case storage is switched off on this deployment — use Save as / Open instead',
   code: 'legacy_case_store_disabled',
 });
+
+// One wrapper instead of the same guard line copied into every handler: a
+// handler added later is gated by being listed below, not by remembering to
+// paste a line at the top of it. accountStatus is deliberately NOT wrapped —
+// it is the gate's own answer and has to work while the store is shut.
+const gated = (handler) => (body) => (caseStoreEnabled() ? handler(body) : storeShut());
+
+export { caseStoreEnabled as legacyCaseStoreEnabled };
 
 const sessions = new Map(); // token -> { company, username }
 
@@ -82,11 +105,9 @@ function noteFailure(u) {
   }
 }
 
-export function register({ company, username, password, invite }) {
-  if (!legacyCaseStoreEnabled()) return disabled();
-  // Legacy registration is never open. Even when the compatibility store is
-  // explicitly enabled, an operator must also set a non-empty invite word.
-  // This is containment, not the replacement tenant-membership design.
+function registerAccount({ company, username, password, invite }) {
+  // The second switch. Even with the store enabled, sign-up stays closed until
+  // an operator sets an invite word and the caller presents exactly it.
   const required = process.env.WELLSIM_INVITE;
   if (!required || String(invite ?? '') !== required)
     return { error: 'registration needs the invite word — ask the site owner' };
@@ -111,8 +132,7 @@ export function register({ company, username, password, invite }) {
   return login({ username: u, password });
 }
 
-export function login({ username, password }) {
-  if (!legacyCaseStoreEnabled()) return disabled();
+function loginAccount({ username, password }) {
   const u = slug(username);
   if (throttled(u))
     return { error: 'too many failed attempts — wait 15 minutes and try again' };
@@ -133,8 +153,7 @@ export function login({ username, password }) {
   return { token, company: rec.company, username: rec.username };
 }
 
-export function logout({ token }) {
-  if (!legacyCaseStoreEnabled()) return disabled();
+function logoutAccount({ token }) {
   sessions.delete(token);
   return { ok: true };
 }
@@ -142,8 +161,7 @@ export function logout({ token }) {
 const auth = (body) => sessions.get(body?.token) ?? null;
 const companyDir = (company) => path.join(casesRoot(), company);
 
-export function caseSave(body) {
-  if (!legacyCaseStoreEnabled()) return disabled();
+function saveCase(body) {
   const s = auth(body);
   if (!s) return { error: 'not signed in' };
   const name = slug(body.name);
@@ -161,8 +179,7 @@ export function caseSave(body) {
   return { ok: true, name, company: s.company };
 }
 
-export function caseList(body) {
-  if (!legacyCaseStoreEnabled()) return disabled();
+function listCases(body) {
   const s = auth(body);
   if (!s) return { error: 'not signed in' };
   let files = [];
@@ -184,8 +201,7 @@ export function caseList(body) {
   return { company: s.company, username: s.username, cases };
 }
 
-export function caseLoad(body) {
-  if (!legacyCaseStoreEnabled()) return disabled();
+function loadCase(body) {
   const s = auth(body);
   if (!s) return { error: 'not signed in' };
   const name = slug(body.name);
@@ -199,8 +215,7 @@ export function caseLoad(body) {
   }
 }
 
-export function caseDelete(body) {
-  if (!legacyCaseStoreEnabled()) return disabled();
+function deleteCase(body) {
   const s = auth(body);
   if (!s) return { error: 'not signed in' };
   const name = slug(body.name);
@@ -212,14 +227,25 @@ export function caseDelete(body) {
   }
 }
 
+// The gate's own answer. Never gated: the UI asks this precisely to find out
+// whether the store is shut, so it has to respond when it is.
 export function accountStatus() {
-  const enabled = legacyCaseStoreEnabled();
   return {
-    enabled,
-    registrationEnabled: enabled && Boolean(process.env.WELLSIM_INVITE),
+    enabled: caseStoreEnabled(),
+    registrationEnabled: registrationOpen(),
     mode: 'legacy-web',
   };
 }
+
+// Everything that touches accounts or stored cases goes out through gated(),
+// so a handler cannot reach the filesystem while the store is off.
+export const register = gated(registerAccount);
+export const login = gated(loginAccount);
+export const logout = gated(logoutAccount);
+export const caseSave = gated(saveCase);
+export const caseList = gated(listCases);
+export const caseLoad = gated(loadCase);
+export const caseDelete = gated(deleteCase);
 
 export const accountHandlers = {
   'accounts/status': accountStatus,
