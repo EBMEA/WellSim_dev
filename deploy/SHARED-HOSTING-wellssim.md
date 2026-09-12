@@ -56,19 +56,33 @@ app under **Passenger**).
 | Application mode | Production |
 | Application root | `wellsim` |
 | Application URL | `wellssim.app` (the domain root, no subpath) |
-| Application startup file | `app.js` |
+| Application startup file | `app.cjs` — **not** `app.js`; see below |
 
 **If the version list tops out below 20.12, stop and say so** — the suite and
 the server are developed against 20.12+ and this workstation runs 24.20.0.
 That is the one thing on this path that cannot be worked around from here.
 
-### Why `app.js` exists
+### Why the startup file is `app.cjs`, and why an ESM `app.js` gives a 503
 
 cPanel wants a startup file at the application root; the server lives at
-`src/server/server.js`. `app.js` is a one-line wrapper committed for exactly
-this. It **must stay ESM** — `package.json` sets `"type": "module"`, so a
-`require()` in that file throws at boot, and Passenger reports it as a bare
-503 with the real error only in the application's stderr log.
+`src/server/server.js`. `app.cjs` is a wrapper committed for exactly this.
+
+The first attempt used an ESM `app.js` and failed with a bare
+**503 Service Unavailable** on every path. The reason: Passenger does not run
+the startup file with `node file` — it `require()`s it from its own CommonJS
+loader. Node 22.12+/24 can `require()` an ES module, **but not one whose
+import graph contains a top-level `await`**, and this server's does
+(`src/server/server.js:15`, `database = await initializeDatabase()`). The
+load throws `ERR_REQUIRE_ASYNC_MODULE` before any of our code runs, and the
+only trace is in the app's stderr log. Reproduced on the workstation with
+`node -e "require('./app.js')"` on the same Node 24.20.0 the host runs.
+
+`app.cjs` fixes it two ways at once: the `.cjs` extension forces CommonJS
+despite `"type": "module"`, and inside it a dynamic `import()` is allowed to
+resolve an async graph. Passenger simply waits for the app to call
+`listen()`, which `server.js` does once the import settles. Verified the same
+way — `require('./app.cjs')` boots, serves `/` and `/help.html`, and
+`/api/accounts/status` reports `enabled:false`.
 
 `server.js` reads `process.env.PORT ?? 3355` and binds
 `process.env.HOST ?? '127.0.0.1'`. Passenger sets `PORT` and patches
