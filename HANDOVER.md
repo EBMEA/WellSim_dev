@@ -1,6 +1,6 @@
 # WellSim — handover
 
-**Live:** none yet — **relaunching on [wellssim.app](https://wellssim.app)** (note the double s, bought 11 Sep 2026); wellsim.app retired 8 Sep; run locally or use the portable ·
+**Live:** **[https://wellssim.app](https://wellssim.app)** since 12 Sep 2026 (note the double s) — Spaceship shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `dddd787`; wellsim.app (single s) retired 8 Sep ·
 **Codex comparison:** https://bldrz.net ·
 **Repo:** https://github.com/EBMEA/WellSim_dev · **Manual:** `src/ui/help.html` (served at /help.html by a local run)
 
@@ -134,6 +134,50 @@ the systemd units as they ran, and this file narrates the infrastructure and
 the credential purge in detail. None of it is a credential. The gitignore
 that keeps `data/`, the workbooks, the ESP catalogue and `ALdocs/` out of git
 is what makes that safe, and it was re-checked.
+
+**12 September 2026 — WellSim is LIVE at https://wellssim.app.** Verified
+from outside, not from the console:
+
+- Certificate: **Let's Encrypt**, SAN `wellssim.app` + `www.wellssim.app`,
+  valid to 10 Dec 2026, full chain OK. Two self-signed certificates were
+  generated in cPanel before the real one issued; both are gone.
+- `/` serves the WellSim UI (title *WellSim — Nodal Analysis*, asset stamp
+  `2026-09-10a`), `/help.html` 74 KB, `app.js` 212 KB, vendored Plotly 4.5 MB
+  — all 200 over HTTPS.
+- **Containment holds:** `/api/accounts/status` →
+  `{"enabled":false,"registrationEnabled":false,"mode":"legacy-web"}`.
+- **38/38 module smoke** passes against the live URL — every module, both
+  fluids, both lift types, the injector, the forecast.
+- Headers: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`.
+
+**Where it runs, and the choice behind it.** The owner chose **Spaceship
+shared hosting** over the Hetzner VPS: cPanel on LiteSpeed at
+`66.29.148.162` (`server52.shared.spaceship.host`), the app under CloudLinux
+Node.js Selector / Passenger, **Node 24.20.0** — the same version as this
+workstation. Application root `/home/solmuygadd/wellsim`, URL at the domain
+root, startup file **`app.cjs`**. The runbook for it is
+`deploy/SHARED-HOSTING-wellssim.md`; the VPS files stay in `deploy/` as the
+path back.
+
+**Two things that went wrong on the way, both worth knowing:**
+
+- The app was first mounted at `/wellssim.app/` (a subpath) with the domain
+  root serving a directory listing. The UI is written for the root — absolute
+  `/api/…`, `/app.js`, and a service worker at `/sw.js` — so a subpath mount
+  boots and then cannot load itself. Fixed by setting Application URL to the
+  bare domain.
+- The first real deploy answered **503 on every path**. Passenger `require()`s
+  the startup file, and Node cannot `require()` an ES module whose graph has
+  a top-level `await` — ours has one at `src/server/server.js:15`. The ESM
+  `app.js` was replaced by **`app.cjs`** (CommonJS, dynamic `import()`); the
+  failure was reproduced and the fix verified locally on the same Node before
+  redeploying. `deploy/SHARED-HOSTING-wellssim.md` had said "must stay ESM";
+  that was the wrong half of the truth and is corrected.
+
+**Still true on this host:** `data/` is empty — no client cases were uploaded,
+by decision pending the shared-hosting risk note in the runbook. No nightly
+backup cron exists yet. `crt.sh` will show the certificate once its indexer
+catches up; its absence there is lag, not a problem.
 
 **11 September 2026 — the relaunch begins.** The owner bought
 **`wellssim.app`** from Spaceship (note the DOUBLE S; the retired name is

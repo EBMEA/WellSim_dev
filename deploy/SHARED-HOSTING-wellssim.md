@@ -19,6 +19,14 @@ NS                 launch1 / launch2.spaceship.net
 So: cPanel on LiteSpeed, the domain is pointed at it, nothing is deployed,
 and **there is no certificate for `wellssim.app`**.
 
+> **UPDATE, 12 September 2026 — this is now DONE and LIVE.** The state above
+> is what the path started from and is kept as the record. Measured after
+> deployment: Let's Encrypt certificate covering both names, `/` serving the
+> WellSim UI at asset stamp `2026-09-10a`, `/api/accounts/status` reporting
+> `enabled:false`, and **38/38 module smoke passing against
+> `https://wellssim.app`**. Deployed commit `dddd787`, Node 24.20.0, startup
+> file `app.cjs`. The sections below remain the runbook for doing it again.
+
 ## Do this first, or nothing else matters
 
 **Issue the SSL certificate.** `.app` is on the HSTS preload list — browsers
