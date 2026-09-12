@@ -59,11 +59,12 @@ function startServer(port) {
       // a data dir that does not exist: backupData() returns immediately, so
       // running the tests never writes into the real case database
       WELLSIM_DATA_DIR: path.join(os.tmpdir(), 'wellsim-test-no-such-data-dir'),
-      // production-safe default: tests must not inherit an opt-in compatibility
-      // switch from the developer's shell
+      // Blank, not absent: a developer who has switched the case store on in
+      // their own shell must not have that leak into a run that is checking
+      // the production default. WELLSIM_DATABASE_ENABLED used to be cleared
+      // here too and no longer is — that subsystem was removed on 12 Sep 2026.
       WELLSIM_ENABLE_LEGACY_CASE_STORE: '',
       WELLSIM_INVITE: '',
-      WELLSIM_DATABASE_ENABLED: '',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -115,19 +116,29 @@ test('static serving stays inside src/ui, and every real asset still loads', asy
   }
 });
 
-test('the web legacy account and case store is disabled by default', async () => {
+// account-gate.test.js proves the gate as a function. This proves it survives
+// the trip through a real server process and out over HTTP — the layer an
+// attacker actually reaches, and the one a routing mistake would expose while
+// every unit test stayed green.
+test('a freshly started server refuses the case store over HTTP', async () => {
   const port = await freePort();
   const child = await startServer(port);
   try {
     const status = JSON.parse((await rawGet(port, '/api/accounts/status')).body);
-    assert.equal(status.enabled, false);
-    assert.equal(status.registrationEnabled, false);
-    assert.equal(status.mode, 'legacy-web');
+    assert.deepEqual(
+      status,
+      { enabled: false, registrationEnabled: false, mode: 'legacy-web' },
+      'the default deployment reports no store and no registration',
+    );
 
-    const login = JSON.parse((await rawGet(port, '/api/auth/login')).body);
-    assert.equal(login.code, 'legacy_case_store_disabled');
-    const cases = JSON.parse((await rawGet(port, '/api/cases/list')).body);
-    assert.equal(cases.code, 'legacy_case_store_disabled');
+    // Every endpoint that could create an account or reach stored cases, not
+    // just a representative one: a gate applied per-handler can be complete
+    // today and have a hole the next time a handler is added.
+    for (const route of ['/api/auth/register', '/api/auth/login', '/api/auth/logout',
+      '/api/cases/save', '/api/cases/list', '/api/cases/load', '/api/cases/delete']) {
+      const body = JSON.parse((await rawGet(port, route)).body);
+      assert.equal(body.code, 'legacy_case_store_disabled', `${route} must refuse`);
+    }
   } finally {
     child.kill();
   }

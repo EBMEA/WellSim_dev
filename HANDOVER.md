@@ -94,7 +94,7 @@ registration. The check in `deploy/README-server-rebuild.md` still has to pass
 before any DNS points at anything — the gate being in the code is one of the
 two halves, not both.
 
-**Current working tree:** clean, **343/343 tests passing**. The PostgreSQL
+**Current working tree:** clean, **344/344 tests passing**. The PostgreSQL
 tenancy foundation — `db/`, `src/server/database.js` and their tests — was
 removed on 12 Sep; it was dormant in production (`WELLSIM_DATABASE_ENABLED`
 was never set), and the fourteen checks covering it went with it.
@@ -301,7 +301,7 @@ The web server uses Node built-ins plus `pg` for opt-in PostgreSQL. The UI is
 plain HTML/JS. Plotly is the single external asset, from a CDN.
 
 ```bash
-npm test                          # 343 unit, regression and security tests
+npm test                          # 344 unit, regression and security tests
 node scripts/validation-sweep.mjs # 43 physics checks against analytic answers
 ```
 

@@ -38,7 +38,7 @@ pulls nothing but the build tooling.
 npm test
 ```
 
-343 tests: PVT pins against workbook cells (15-digit), wellbore-march station parity
+344 tests: PVT pins against workbook cells (15-digit), wellbore-march station parity
 (gas march bit-exact; oil march within documented drift bands), IPR/nodal/calibration
 round trips, ESP stack, reserve and forecast synthetic-tank recoveries, the export
 contract (including formula-injection defence), and the account gate that keeps
@@ -104,9 +104,14 @@ when a supported case store reports itself available:
 - [docs/equations.md](docs/equations.md) — every correlation and equation as
   implemented, with the exact tuned constants, plus the documented deviations from
   the source workbooks.
-- [docs/deploy.md](docs/deploy.md) — internet deployment (Render + custom domain
-  DNS, or a VPS with nginx/certbot); `render.yaml` and `Dockerfile` are in the
-  repo root.
+- [deploy/SHARED-HOSTING-wellssim.md](deploy/SHARED-HOSTING-wellssim.md) — **how
+  the live site actually runs**: cPanel/LiteSpeed with the app under Passenger,
+  which is where `wellssim.app` is served from.
+- [deploy/CUTOVER-wellssim-app.md](deploy/CUTOVER-wellssim-app.md) and
+  [deploy/cloud-init-wellssim.yaml](deploy/cloud-init-wellssim.yaml) — the VPS
+  route, if the site ever moves back to a machine of its own.
+- [docs/deploy.md](docs/deploy.md) — the **retired** Hetzner setup, kept as the
+  record of what ran until 8 September 2026. Not live infrastructure.
 
 A standalone portable build (`WellSim.exe` — no install, cases saved beside the
 exe) is built from THIS repo by `build.ps1` — see
