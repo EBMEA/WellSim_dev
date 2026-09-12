@@ -7,7 +7,7 @@ const OIL_SCHEMA = [
     ['wcPct', 'Water cut', '%', 50],
     ['gorScfStb', 'GOR', 'scf/stb', 5000],
     ['tubingIdIn', 'Tubing ID', 'in', 2.992],
-    ['roughness', 'Roughness', '-', 0.00006],
+    ['roughness', 'Roughness', '-', 0.00006, 'fixed'],
   ]},
   { title: 'Trajectory', fields: [
     ['topPerfAhM', 'Top perf depth', 'mAH', 2810],
@@ -19,15 +19,15 @@ const OIL_SCHEMA = [
     ['gasSg', 'Gas SG', 'air=1', 0.842],
     ['rsiScfStb', 'Rsi', 'scf/stb', 700],
     ['tresF', 'Reservoir temp', 'F', 201],
-    ['oilViscCp', 'Oil viscosity (tubing)', 'cp', 6],
-    ['waterSg', 'Water SG', '-', 1.05],
+    ['oilViscCp', 'Oil viscosity (tubing)', 'cp', 6, 'fixed'],
+    ['waterSg', 'Water SG', '-', 1.05, 'fixed'],
     ['pbPsi', 'Pb (blank = calc)', 'psi', ''],
   ]},
   { title: 'Heat transfer (WHT is calculated)', fields: [
     ['soilTempF', 'Soil temp', 'F', 90],
     ['htcBtu', 'U coeff', 'BTU/hr.ft2.F', 3],
     ['tubingOdIn', 'Tubing OD', 'in', 3.5],
-    ['cpBtu', 'Cp', 'BTU/lbm.F', 0.51],
+    ['cpBtu', 'Cp', 'BTU/lbm.F', 0.51, 'fixed'],
   ]},
   { title: 'Match factors', fields: [
     ['matchHead', 'Matching head', '-', 1],
@@ -134,7 +134,7 @@ const WATER_SCHEMA = [
   { title: 'Well & flow', fields: [
     ['thpPsi', 'FTHP', 'psi', 200],
     ['tubingIdIn', 'Tubing ID', 'in', 2.992],
-    ['roughness', 'Roughness', '-', 0.00006],
+    ['roughness', 'Roughness', '-', 0.00006, 'fixed'],
   ]},
   { title: 'Trajectory', fields: [
     ['topPerfAhM', 'Top perf depth', 'mAH', 2810],
@@ -143,7 +143,7 @@ const WATER_SCHEMA = [
   ]},
   { title: 'Fluids', fields: [
     ['waterSg', 'Water SG', '-', 1.05],
-    ['gasSg', 'Lift-gas SG', 'air=1', 0.842],
+    ['gasSg', 'Lift-gas SG', 'air=1', 0.842, 'fixed'],
     ['tresF', 'Reservoir temp', 'F', 201],
     ['injTempF', 'Injection water temp', 'F', 90],
   ]},
@@ -151,7 +151,7 @@ const WATER_SCHEMA = [
     ['soilTempF', 'Soil temp', 'F', 90],
     ['htcBtu', 'U coeff', 'BTU/hr.ft2.F', 3],
     ['tubingOdIn', 'Tubing OD', 'in', 3.5],
-    ['cpBtu', 'Cp', 'BTU/lbm.F', 0.51],
+    ['cpBtu', 'Cp', 'BTU/lbm.F', 0.51, 'fixed'],
   ]},
   { title: 'Match factors', fields: [
     ['matchHead', 'Matching head', '-', 1],
@@ -265,7 +265,7 @@ const GAS_SCHEMA = [
     ['cgrStbMMscf', 'CGR', 'stb/MMscf', 57.4358974],
     ['wgrStbMMscf', 'WGR', 'stb/MMscf', 3.8461538],
     ['tubingIdIn', 'Tubing ID', 'in', 2.992],
-    ['roughnessBase', 'Base roughness', 'in', 0.0021],
+    ['roughnessBase', 'Base roughness', 'in', 0.0021, 'fixed'],
   ]},
   { title: 'Trajectory', fields: [
     ['topPerfAhM', 'Top perf depth', 'mAH', 3013],
@@ -279,14 +279,14 @@ const GAS_SCHEMA = [
     ['co2Pct', 'CO2', '%', 3],
     ['h2sPpm', 'H2S', 'ppm', 2],
     ['tresF', 'Reservoir temp', 'F', 232],
-    ['oilViscCp', 'Cond. viscosity', 'cp', 2],
-    ['sigmaDyneCm', 'Surface tension', 'dyn/cm', 30],
+    ['oilViscCp', 'Cond. viscosity', 'cp', 2, 'fixed'],
+    ['sigmaDyneCm', 'Surface tension', 'dyn/cm', 30, 'fixed'],
   ]},
   { title: 'Heat transfer (WHT is calculated)', fields: [
     ['soilTempF', 'Soil temp', 'F', 90],
     ['htcBtu', 'U coeff', 'BTU/hr.ft2.F', 3],
     ['tubingOdIn', 'Tubing OD', 'in', 3.5],
-    ['cpBtu', 'Cp', 'BTU/lbm.F', 0.51],
+    ['cpBtu', 'Cp', 'BTU/lbm.F', 0.51, 'fixed'],
   ]},
   { title: 'Reservoir pressure', fields: [
     ['priPsi', 'Initial Pres (Pri)', 'psi', 3800],
@@ -421,9 +421,17 @@ const GAS_SENS_ROWS = [
 
 // ---------- form rendering ----------
 
-const frow = (prefix, [k, label, unit, def]) =>
-  `<div class="frow"><label title="${label} (${unit})">${label}<span class="unit">${unit}</span></label>` +
-  `<input id="${prefix}-${k}" value="${def}" /></div>`;
+// A field marked 'fixed' is a march default, not an analyst input: it still
+// reaches the solver and still travels in a saved case, but it is not shown
+// and cannot be typed over. It stays a real input element with the same id so
+// collect(), Save as / Open and the CSV export all keep working unchanged —
+// the alternative, dropping it from the schema, would silently stop sending
+// the value and quietly change every answer.
+const frow = (prefix, [k, label, unit, def, fixed]) =>
+  fixed
+    ? `<input type="hidden" id="${prefix}-${k}" value="${def}" data-fixed="1" />`
+    : `<div class="frow"><label title="${label} (${unit})">${label}<span class="unit">${unit}</span></label>` +
+      `<input id="${prefix}-${k}" value="${def}" /></div>`;
 
 function renderForm(containerId, prefix, schema) {
   const el = document.getElementById(containerId);
