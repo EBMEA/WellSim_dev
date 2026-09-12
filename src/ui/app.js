@@ -143,7 +143,7 @@ const WATER_SCHEMA = [
   ]},
   { title: 'Fluids', fields: [
     ['waterSg', 'Water SG', '-', 1.05],
-    ['gasSg', 'Lift-gas SG', 'air=1', 0.842, 'fixed'],
+    ['gasSg', 'Lift-gas SG', 'air=1', 0.842],
     ['tresF', 'Reservoir temp', 'F', 201],
     ['injTempF', 'Injection water temp', 'F', 90],
   ]},
@@ -1699,10 +1699,26 @@ async function loadEspPumps() {
 // w.c. 100, GOR 0) with its own panel — rates are gross water ----
 const waterLiftType = () => document.querySelector('input[name="water-lift"]:checked')?.value ?? 'natural';
 
+// Lift-gas SG describes the INJECTED gas, not the produced water, so it is an
+// input only while the well is actually gas lifted — meaningless on natural
+// flow or ESP, and doubly so on an injector, which lifts nothing. It lives in
+// the Fluids group rather than the gas-lift fieldset, so it has to be toggled
+// by id rather than by hiding a container.
+//
+// The row is hidden, not removed: the field keeps its value and still reaches
+// the solver, so switching lift type back and forth cannot lose it.
+function refreshWaterGasSgRow() {
+  const row = document.getElementById('water-gasSg')?.closest('.frow');
+  if (!row) return;
+  const gasLifted = waterWellType() !== 'injector' && waterLiftType() === 'gaslift';
+  row.style.display = gasLifted ? '' : 'none';
+}
+
 function switchWaterLift() {
   const t = waterLiftType();
   document.getElementById('water-lift-gl').style.display = t === 'gaslift' ? '' : 'none';
   document.getElementById('water-lift-esp').style.display = t === 'esp' ? '' : 'none';
+  refreshWaterGasSgRow();
   // the ESP chart rows belong to the ESP lift only — stale ones would
   // otherwise linger after switching back to natural flow
   if (t !== 'esp')
@@ -1807,6 +1823,9 @@ function switchWaterType() {
   refreshWaterPresDefaults();
   if (!inj) switchWaterLift();
   refreshWaterSens();
+  // switchWaterLift is skipped for an injector, so the lift-gas row has to be
+  // settled here too or it would survive the switch from a gas-lifted producer.
+  refreshWaterGasSgRow();
   const row = document.getElementById('water-injTempF')?.closest('.frow');
   if (row) row.style.display = inj ? '' : 'none';
   const relabel = (id, txt) => {
