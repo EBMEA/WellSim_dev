@@ -1,5 +1,5 @@
-// wellsim UI server — Node built-in HTTP and opt-in PostgreSQL. Serves the
-// static UI from src/ui and the JSON API from src/server/api.js.
+// wellsim UI server — Node built-in HTTP. Serves the static UI from src/ui
+// and the JSON API from src/server/api.js.
 // Run: node src/server/server.js   (PORT env overrides 3355)
 
 import http from 'node:http';
@@ -8,20 +8,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handlers as apiHandlers } from './api.js';
 import { accountHandlers } from './accounts.js';
-import { initializeDatabase } from './database.js';
-
-let database;
-try {
-  database = await initializeDatabase();
-} catch (error) {
-  console.error(`Database startup failed: ${error.message}`);
-  process.exit(1);
-}
-// No v2 data handler is exposed yet. Future authenticated handlers must use
-// database.withTenantTransaction with server-verified identity and workspace.
 
 // free version stays: every calculation endpoint is open; accounts only add
-// the per-company server case database
+// the per-company server case store
 const handlers = { ...apiHandlers, ...accountHandlers };
 
 // rolling backup of the case database (data/ -> data-backups/<date>/, kept
@@ -151,7 +140,6 @@ const HOST = process.env.HOST ?? '127.0.0.1';
 server.listen(PORT, HOST, () => {
   console.log(`wellsim UI on http://localhost:${PORT}`);
   console.log(`bound to ${HOST}${HOST === '127.0.0.1' ? ' (this machine only)' : ' — REACHABLE FROM THE NETWORK'}`);
-  console.log(`PostgreSQL boundary: ${database.enabled ? 'ready' : 'disabled'}`);
 });
 
 let stopping = false;
@@ -161,7 +149,6 @@ async function shutdown() {
   const deadline = setTimeout(() => process.exit(1), 20000).unref();
   try {
     await new Promise((resolve) => server.close(resolve));
-    await database.close();
     clearTimeout(deadline);
   } catch {
     process.exitCode = 1;

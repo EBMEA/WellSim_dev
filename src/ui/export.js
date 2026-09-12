@@ -1,8 +1,10 @@
 /* WellSim browser export contract.
  *
- * Deliberately dependency-free and exposed through one frozen global so the
- * website and the portable build use the same exporters. New modules register
- * formats here instead of inventing their own download and filename rules.
+ * One frozen global, no imports, no DOM: the website, the portable exe and the
+ * Node test runner all load this same file. Written to
+ * docs/specs/export-contract.md — read that before changing any behaviour
+ * here, because the CSV column order and the formula-neutralising rules are
+ * relied on outside this file.
  */
 (function installWellSimExport(root) {
   'use strict';
@@ -10,338 +12,305 @@
   const CONTRACT_VERSION = 1;
   const CASE_SCHEMA_ID = 'wellsim.case.v1';
   const WORKBOOK_SCHEMA_ID = 'wellsim.case-workbook.v1';
+  const COMPUTED_PLACEHOLDER = 'calculated by WellSim';
+
+  // Declared, deliberately not implemented here: rendering real XLSX needs a
+  // zip writer and belongs server-side. createWorkbookModel produces the
+  // renderer's input, so the capability can be advertised honestly meanwhile.
   const WORKBOOK_CAPABILITY = Object.freeze({
     id: 'case-xlsx',
-    label: 'Engineering case workbook (Excel)',
+    label: 'Case workbook for Excel',
     extension: 'xlsx',
     mediaType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     dataTypes: Object.freeze(['case']),
     roundTrip: false,
     execution: 'queued',
     modelSchemaId: WORKBOOK_SCHEMA_ID,
-    description: 'Versioned inputs, selections, tabular datasets and provenance. Requires an approved server-side renderer.',
+    description:
+      'Inputs, selections, tabular data and provenance as a reviewable workbook. Rendered on the server; not produced in the browser.',
   });
 
   const FORMATS = Object.freeze([
     Object.freeze({
       id: 'case-json',
-      label: 'WellSim case (JSON)',
+      label: 'WellSim case file (JSON)',
       extension: 'json',
       mediaType: 'application/vnd.wellsim.case+json',
       dataTypes: Object.freeze(['case']),
       roundTrip: true,
-      description: 'Complete current case. This file can be opened in WellSim.',
+      description: 'The whole case, exactly as it stands. This is the file WellSim can open again.',
     }),
     Object.freeze({
       id: 'case-inputs-csv',
-      label: 'Case inputs (CSV)',
+      label: 'Inputs as a spreadsheet (CSV)',
       extension: 'csv',
       mediaType: 'text/csv;charset=utf-8',
       dataTypes: Object.freeze(['case']),
       roundTrip: false,
-      description: 'Spreadsheet-ready inputs and imported production rows. CSV is not a restorable case.',
+      description:
+        'Inputs and production rows for a spreadsheet. One-way: a CSV cannot be opened back into WellSim.',
     }),
   ]);
 
-  const byId = new Map(FORMATS.map((format) => [format.id, format]));
-
-  function assertCase(caseData) {
-    if (!caseData || typeof caseData !== 'object' || Array.isArray(caseData)) {
-      throw new TypeError('export requires a WellSim case object');
-    }
-    if (caseData.app !== 'WellSim') throw new TypeError('not a WellSim case');
-    if (caseData.version !== 1) throw new TypeError(`unsupported WellSim case version ${caseData.version}`);
-  }
+  const formatsById = new Map(FORMATS.map((format) => [format.id, format]));
 
   function formatsFor(dataType) {
     return FORMATS.filter((format) => format.dataTypes.includes(dataType));
   }
 
+  function assertCase(caseData) {
+    if (!caseData || typeof caseData !== 'object' || Array.isArray(caseData)) {
+      throw new TypeError('export requires a WellSim case object');
+    }
+    return caseData;
+  }
+
+  /* ---------------------------------------------------------------- safety */
+
+  // A spreadsheet reads a leading = + - or @ as a formula, so an exported case
+  // could execute on open. Neutralise by prefixing an apostrophe, which every
+  // spreadsheet treats as "this is literal text".
+  //
+  // The trap this usually falls into is mangling negative numbers: '-12.5'
+  // starts with '-' but must stay the NUMBER -12.5, or every negative skin,
+  // depth or pressure in the case becomes text. So numbers are recognised
+  // first and returned as numbers.
+  const NUMERIC = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
+  const FORMULA_LEAD = /^[=+\-@]/;
+
+  function spreadsheetSafe(value) {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'number') return Number.isFinite(value) ? value : '';
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    const text = String(value).replace(/^\s+/, '');
+    if (text === '') return '';
+    if (NUMERIC.test(text)) return Number(text);
+    return FORMULA_LEAD.test(text) ? `'${text}` : text;
+  }
+
+  /* -------------------------------------------------------------- filenames */
+
   function safeBaseName(value) {
-    let name = String(value ?? '').normalize('NFKC');
-    name = name.replace(/[\\/]+/g, '-').replace(/[<>:"|?*\u0000-\u001f]/g, '-');
-    name = name.replace(/\s+/g, ' ').replace(/^[. -]+|[. ]+$/g, '').trim().slice(0, 100);
-    if (!name) name = 'wellsim-case';
-    if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name)) name = `wellsim-${name}`;
-    return name;
+    const stem = String(value ?? '')
+      .replace(/[\\/:*?"<>|\u0000-\u001f]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\.+$/, '');
+    return stem === '' ? 'wellsim-case' : stem.slice(0, 120);
   }
 
   function withExtension(baseName, extension) {
-    const safe = safeBaseName(baseName);
-    return safe.toLowerCase().endsWith(`.${extension}`) ? safe : `${safe}.${extension}`;
+    const stem = safeBaseName(baseName);
+    return stem.toLowerCase().endsWith(`.${extension}`) ? stem : `${stem}.${extension}`;
   }
 
-  function sectionFor(field, metadata) {
-    if (metadata?.section) return String(metadata.section);
-    const split = String(field).indexOf('-');
-    return split > 0 ? String(field).slice(0, split) : 'case';
-  }
-
-  function isPlainNumber(text) {
-    return /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[-+]?\d+)?$/i.test(text);
-  }
-
-  // Excel and similar programs may interpret text beginning with these
-  // characters as a formula. Numeric values (including negatives) remain
-  // numeric; non-numeric formula-like values are forced to text.
-  function spreadsheetSafe(value) {
-    if (value == null) return '';
-    const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
-    const leftTrimmed = text.replace(/^\s+/, '');
-    if (/^[=+@]/.test(leftTrimmed) || (leftTrimmed.startsWith('-') && !isPlainNumber(leftTrimmed))) {
-      return `'${text}`;
-    }
-    return text;
-  }
-
-  function workbookValue(value, metadata = {}) {
-    if (value == null || value === '') return null;
-    if (typeof value === 'number' || typeof value === 'boolean') return value;
-    const text = String(value);
-    if ((metadata.valueType === 'number' || metadata.unit) && isPlainNumber(text.trim())) {
-      const number = Number(text);
-      if (Number.isFinite(number)) return number;
-    }
-    return spreadsheetSafe(text);
-  }
-
+  // Excel refuses []:*?/\ and anything over 31 characters, and silently
+  // refuses a workbook containing two sheets with the same name — hence the
+  // ordinal suffix in uniqueSheetName below.
   function safeSheetName(value) {
-    const cleaned = String(value ?? '')
-      .normalize('NFKC')
-      .replace(/[\\/*?:\[\]]/g, '-')
-      .replace(/^'+|'+$/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 31);
-    return cleaned || 'Data';
+    const words = String(value ?? '')
+      .split(/[[\]:*?/\\\s_]+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
+    const name = words.join('-');
+    return (name === '' ? 'Sheet' : name).slice(0, 31);
   }
 
-  function uniqueSheetName(value, usedNames) {
-    const base = safeSheetName(value);
-    let candidate = base;
-    let sequence = 2;
-    while (usedNames.has(candidate.toLowerCase())) {
-      const suffix = ` ${sequence}`;
-      candidate = `${base.slice(0, 31 - suffix.length)}${suffix}`;
-      sequence += 1;
+  function uniqueSheetName(name, taken) {
+    if (!taken.has(name)) {
+      taken.add(name);
+      return name;
     }
-    usedNames.add(candidate.toLowerCase());
-    return candidate;
+    for (let n = 2; ; n += 1) {
+      const suffix = ` ${n}`;
+      const candidate = `${name.slice(0, 31 - suffix.length)}${suffix}`;
+      if (!taken.has(candidate)) {
+        taken.add(candidate);
+        return candidate;
+      }
+    }
   }
 
-  function titleFromIdentifier(value) {
-    return String(value ?? '')
-      .replace(/[-_]+/g, ' ')
-      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  /* ------------------------------------------------------------- metadata */
+
+  // Section falls back to the field id's prefix, because ids are written
+  // 'oil-thpPsi' / 'gas-fthpPsi' and that prefix is the tab it belongs to.
+  function sectionOf(fieldId, fieldMeta) {
+    const declared = fieldMeta?.[fieldId]?.section;
+    if (declared) return declared;
+    const dash = String(fieldId).indexOf('-');
+    return dash > 0 ? String(fieldId).slice(0, dash) : String(fieldId);
   }
+
+  function labelOf(fieldId, fieldMeta) {
+    const declared = fieldMeta?.[fieldId]?.label;
+    if (declared) return declared;
+    const id = String(fieldId);
+    const first = id.search(/[a-z]/i);
+    return first < 0 ? id : id.slice(0, first) + id.charAt(first).toUpperCase() + id.slice(first + 1);
+  }
+
+  const unitOf = (fieldId, fieldMeta) => fieldMeta?.[fieldId]?.unit ?? '';
+
+  function columnsOf(gridId, rows, gridMeta) {
+    const keys = [];
+    for (const row of rows) for (const key of Object.keys(row ?? {})) if (!keys.includes(key)) keys.push(key);
+    return keys.map((key) => {
+      const meta = gridMeta?.[gridId]?.[key];
+      const label = meta?.label ?? key;
+      return Object.freeze({ key, label: meta?.unit ? `${label} (${meta.unit})` : label });
+    });
+  }
+
+  const gridsOf = (caseData) =>
+    Object.entries(caseData.grids ?? {}).map(([id, rows]) => [id, Array.isArray(rows) ? rows : []]);
+
+  /* ------------------------------------------------------------------ CSV */
+
+  const csvCell = (value) => `"${String(spreadsheetSafe(value)).replace(/"/g, '""')}"`;
+  const csvRow = (cells) => cells.map(csvCell).join(',');
+
+  const CSV_HEADER = ['record_type', 'section', 'row', 'field', 'label', 'unit', 'value'];
+
+  function caseCsv(caseData, { fieldMeta = {}, gridMeta = {} } = {}) {
+    const lines = [CSV_HEADER.map((h) => `"${h}"`).join(',')];
+
+    for (const [fieldId, value] of Object.entries(caseData.inputs ?? {})) {
+      lines.push(
+        csvRow(['input', sectionOf(fieldId, fieldMeta), '', fieldId, labelOf(fieldId, fieldMeta), unitOf(fieldId, fieldMeta), value]),
+      );
+    }
+
+    for (const [gridId, rows] of gridsOf(caseData)) {
+      const columns = columnsOf(gridId, rows, gridMeta);
+      rows.forEach((row, index) => {
+        for (const column of columns) {
+          const meta = gridMeta?.[gridId]?.[column.key];
+          lines.push(
+            csvRow(['grid', gridId, index + 1, column.key, meta?.label ?? column.key, meta?.unit ?? '', row?.[column.key] ?? '']),
+          );
+        }
+      });
+    }
+
+    // Derived values export as a placeholder, never a number: a computed cell
+    // sitting in a spreadsheet invites someone to treat it as an input.
+    for (const fieldId of caseData.computed ?? []) {
+      lines.push(csvRow(['computed', sectionOf(fieldId, fieldMeta), '', fieldId, fieldId, '', COMPUTED_PLACEHOLDER]));
+    }
+
+    // BOM so Excel reads it as UTF-8; CRLF because RFC 4180 says so and Excel
+    // is fussier about it than most readers.
+    return `﻿${lines.join('\r\n')}\r\n`;
+  }
+
+  /* ------------------------------------------------------------- workbook */
 
   function caseWorkbookModel(caseData, options = {}) {
     assertCase(caseData);
-    const fieldMeta = options.fieldMeta ?? {};
-    const gridMeta = options.gridMeta ?? {};
-    const generatedAt = options.generatedAt ?? new Date().toISOString();
-    const computed = new Set(caseData.computed ?? []);
-    const usedNames = new Set();
-    const sheets = [];
-    const safeText = (value) => spreadsheetSafe(value ?? '');
-    const safeGeneratedAt = safeText(generatedAt);
+    const { fieldMeta = {}, gridMeta = {}, deploymentRevision = '', sourceChecksum = '' } = options;
+    const generatedAt = spreadsheetSafe(options.generatedAt ?? new Date().toISOString());
+    const title = spreadsheetSafe(options.title ?? 'WellSim engineering case export');
 
-    const addSheet = (id, requestedName, kind, columns, rows) => {
-      sheets.push(Object.freeze({
+    const sheet = (id, name, columns, rows) =>
+      Object.freeze({
         id,
-        name: uniqueSheetName(requestedName, usedNames),
-        kind,
-        columns: Object.freeze(columns.map((column) => Object.freeze({ ...column }))),
-        rows: Object.freeze(rows.map((row) => Object.freeze([...row]))),
-      }));
-    };
+        name,
+        columns: Object.freeze(columns.map((c) => Object.freeze({ ...c }))),
+        rows: Object.freeze(rows.map((r) => Object.freeze([...r]))),
+      });
 
-    const inputs = Object.keys(caseData.inputs ?? {}).sort().map((field) => {
-      const meta = fieldMeta[field] ?? {};
-      return [
-        safeText(sectionFor(field, meta)),
-        safeText(field),
-        safeText(meta.label ?? titleFromIdentifier(field)),
-        workbookValue(caseData.inputs[field], meta),
-        safeText(meta.unit ?? ''),
-        computed.has(field) ? 'Calculated' : 'User input',
-      ];
-    });
-    for (const field of [...computed].sort()) {
-      if (Object.hasOwn(caseData.inputs ?? {}, field)) continue;
-      const meta = fieldMeta[field] ?? {};
-      inputs.push([
-        safeText(sectionFor(field, meta)),
-        safeText(field),
-        safeText(meta.label ?? titleFromIdentifier(field)),
-        'Calculated by WellSim; not stored in the case file',
-        safeText(meta.unit ?? ''),
-        'Calculated',
+    const sheets = [];
+    const taken = new Set();
+
+    sheets.push(
+      sheet('summary', uniqueSheetName('Summary', taken), [{ key: 'item', label: 'Item' }, { key: 'value', label: 'Value' }], [
+        ['Title', title],
+        ['Generated at', generatedAt],
+        ['Active tab', spreadsheetSafe(caseData.activeTab ?? '')],
+        ['Case version', spreadsheetSafe(caseData.version ?? '')],
+        ['Inputs', Object.keys(caseData.inputs ?? {}).length],
+        ['Grids', gridsOf(caseData).length],
+        // Last row, and it must stay last: the one thing a recipient needs to
+        // know is that this workbook cannot be loaded back.
+        ['Round trip', 'This workbook is a report, not a case — to reopen this well in WellSim, use the WellSim JSON export instead.'],
+      ]),
+    );
+
+    sheets.push(
+      sheet('manifest', uniqueSheetName('Manifest', taken), [{ key: 'key', label: 'Key' }, { key: 'value', label: 'Value' }], [
+        ['contract_version', String(CONTRACT_VERSION)],
+        ['case_schema', CASE_SCHEMA_ID],
+        ['workbook_schema', WORKBOOK_SCHEMA_ID],
+        ['generated_at', generatedAt],
+        ['deployment_revision', spreadsheetSafe(deploymentRevision)],
+        ['source_checksum', spreadsheetSafe(sourceChecksum)],
+        // These four are an assertion to whoever reviews the file that it
+        // carries nothing executable. Keep them last and keep them exact.
+        ['round_trip', 'false'],
+        ['formula_policy', 'none'],
+        ['external_links', 'none'],
+        ['macros', 'none'],
+      ]),
+    );
+
+    const inputRows = Object.keys(caseData.inputs ?? {})
+      .sort()
+      .map((fieldId) => [
+        spreadsheetSafe(sectionOf(fieldId, fieldMeta)),
+        spreadsheetSafe(fieldId),
+        spreadsheetSafe(labelOf(fieldId, fieldMeta)),
+        spreadsheetSafe(caseData.inputs[fieldId]),
       ]);
+    sheets.push(
+      sheet(
+        'inputs',
+        uniqueSheetName('Inputs', taken),
+        [
+          { key: 'section', label: 'Section' },
+          { key: 'field', label: 'Field' },
+          { key: 'label', label: 'Label' },
+          { key: 'value', label: 'Value' },
+        ],
+        inputRows,
+      ),
+    );
+
+    for (const [gridId, rows] of gridsOf(caseData)) {
+      const columns = columnsOf(gridId, rows, gridMeta);
+      sheets.push(
+        sheet(
+          `grid-${gridId}`,
+          uniqueSheetName(safeSheetName(gridId), taken),
+          [{ key: 'row', label: 'Row' }, ...columns],
+          rows.map((row, index) => [index + 1, ...columns.map((c) => spreadsheetSafe(row?.[c.key]))]),
+        ),
+      );
     }
-
-    const selections = [];
-    for (const field of Object.keys(caseData.selects ?? {}).sort()) {
-      const meta = fieldMeta[field] ?? {};
-      selections.push(['Select', safeText(field), safeText(meta.label ?? titleFromIdentifier(field)), workbookValue(caseData.selects[field])]);
-    }
-    for (const field of Object.keys(caseData.radios ?? {}).sort()) {
-      selections.push(['Option', safeText(field), safeText(titleFromIdentifier(field)), workbookValue(caseData.radios[field])]);
-    }
-
-    const gridDefinitions = Object.keys(caseData.grids ?? {}).sort().map((gridName) => {
-      const records = Array.isArray(caseData.grids[gridName]) ? caseData.grids[gridName] : [];
-      const fields = [...new Set(records.flatMap((record) => Object.keys(record ?? {})))].sort();
-      return {
-        id: `grid-${gridName}`,
-        requestedName: titleFromIdentifier(gridName),
-        columns: [{ key: '_row', label: 'Row', valueType: 'number' }, ...fields.map((field) => {
-          const meta = gridMeta[gridName]?.[field] ?? {};
-          const label = meta.label ?? titleFromIdentifier(field);
-          return {
-            key: field,
-            label: safeText(meta.unit ? `${label} (${meta.unit})` : label),
-            unit: safeText(meta.unit ?? ''),
-          };
-        })],
-        rows: records.map((record, index) => [
-          index + 1,
-          ...fields.map((field) => {
-            const meta = gridMeta[gridName]?.[field] ?? {};
-            return workbookValue(record?.[field], {
-              ...meta,
-              valueType: meta.valueType ?? (isPlainNumber(String(record?.[field] ?? '').trim()) ? 'number' : 'text'),
-            });
-          }),
-        ]),
-      };
-    });
-
-    addSheet('summary', 'Summary', 'key-value', [
-      { key: 'property', label: 'Property' },
-      { key: 'value', label: 'Value' },
-    ], [
-      ['Document', 'WellSim engineering case export'],
-      ['Case schema', CASE_SCHEMA_ID],
-      ['Workbook schema', WORKBOOK_SCHEMA_ID],
-      ['Case saved at', safeText(caseData.savedAt ?? '')],
-      ['Workbook generated at', safeGeneratedAt],
-      ['Active well type', safeText(caseData.activeTab ?? '')],
-      ['Input fields', inputs.length],
-      ['Selections', selections.length],
-      ['Tabular datasets', gridDefinitions.length],
-      ['Restorable case', 'No — use the WellSim JSON export to restore a case'],
-    ]);
-
-    addSheet('inputs', 'Inputs', 'table', [
-      { key: 'section', label: 'Section' },
-      { key: 'field', label: 'Field ID' },
-      { key: 'label', label: 'Engineering label' },
-      { key: 'value', label: 'Value' },
-      { key: 'unit', label: 'Unit' },
-      { key: 'state', label: 'Source state' },
-    ], inputs);
-
-    addSheet('selections', 'Selections', 'table', [
-      { key: 'type', label: 'Selection type' },
-      { key: 'field', label: 'Field ID' },
-      { key: 'label', label: 'Label' },
-      { key: 'value', label: 'Selected value' },
-    ], selections);
-
-    for (const grid of gridDefinitions) {
-      addSheet(grid.id, grid.requestedName, 'table', grid.columns, grid.rows);
-    }
-
-    addSheet('manifest', 'Manifest', 'key-value', [
-      { key: 'property', label: 'Property' },
-      { key: 'value', label: 'Value' },
-    ], [
-      ['export_contract_version', CONTRACT_VERSION],
-      ['source_schema_id', CASE_SCHEMA_ID],
-      ['workbook_schema_id', WORKBOOK_SCHEMA_ID],
-      ['source_app', caseData.app],
-      ['source_case_version', caseData.version],
-      ['generated_at', safeGeneratedAt],
-      ['deployment_revision', safeText(options.deploymentRevision ?? '')],
-      ['source_checksum_sha256', safeText(options.sourceChecksum ?? '')],
-      ['round_trip', 'false'],
-      ['formula_policy', 'none'],
-      ['external_links', 'none'],
-      ['macros', 'none'],
-    ]);
 
     return Object.freeze({
       contractVersion: CONTRACT_VERSION,
       schemaId: CASE_SCHEMA_ID,
       workbookSchemaId: WORKBOOK_SCHEMA_ID,
-      generatedAt: safeGeneratedAt,
-      title: safeText(options.title ?? 'WellSim engineering case export'),
+      generatedAt,
+      title,
       sheets: Object.freeze(sheets),
     });
   }
 
-  function csvCell(value) {
-    return `"${spreadsheetSafe(value).replace(/"/g, '""')}"`;
-  }
-
-  function caseRows(caseData, fieldMeta = {}) {
-    const rows = [];
-    const push = (recordType, section, row, field, label, unit, value) => {
-      rows.push([recordType, section, row, field, label, unit, value]);
-    };
-
-    push('metadata', 'case', '', 'schema_id', 'Schema', '', CASE_SCHEMA_ID);
-    push('metadata', 'case', '', 'export_contract_version', 'Export contract version', '', CONTRACT_VERSION);
-    push('metadata', 'case', '', 'saved_at', 'Saved at', 'ISO 8601', caseData.savedAt ?? '');
-    push('metadata', 'case', '', 'active_tab', 'Active well type', '', caseData.activeTab ?? '');
-
-    for (const field of Object.keys(caseData.inputs ?? {}).sort()) {
-      const meta = fieldMeta[field] ?? {};
-      push('input', sectionFor(field, meta), '', field, meta.label ?? field, meta.unit ?? '', caseData.inputs[field]);
-    }
-    for (const field of Object.keys(caseData.selects ?? {}).sort()) {
-      const meta = fieldMeta[field] ?? {};
-      push('select', sectionFor(field, meta), '', field, meta.label ?? field, meta.unit ?? '', caseData.selects[field]);
-    }
-    for (const field of Object.keys(caseData.radios ?? {}).sort()) {
-      push('selection', 'case', '', field, field, '', caseData.radios[field]);
-    }
-    for (const field of [...(caseData.computed ?? [])].sort()) {
-      const meta = fieldMeta[field] ?? {};
-      push('computed', sectionFor(field, meta), '', field, meta.label ?? field, meta.unit ?? '', 'calculated by WellSim');
-    }
-    for (const gridName of Object.keys(caseData.grids ?? {}).sort()) {
-      const grid = Array.isArray(caseData.grids[gridName]) ? caseData.grids[gridName] : [];
-      grid.forEach((record, index) => {
-        for (const field of Object.keys(record ?? {}).sort()) {
-          push('grid', gridName, index + 1, field, field, '', record[field]);
-        }
-      });
-    }
-    return rows;
-  }
-
-  function jsonContent(caseData) {
-    return `${JSON.stringify(caseData, null, 2)}\n`;
-  }
-
-  function csvContent(caseData, fieldMeta) {
-    const header = ['record_type', 'section', 'row', 'field', 'label', 'unit', 'value'];
-    const lines = [header, ...caseRows(caseData, fieldMeta)].map((row) => row.map(csvCell).join(','));
-    // UTF-8 BOM makes Excel open non-ASCII labels correctly; CRLF is the most
-    // interoperable record separator for spreadsheet programs.
-    return `\uFEFF${lines.join('\r\n')}\r\n`;
-  }
+  /* ------------------------------------------------------------- artifacts */
 
   function createArtifact(caseData, formatId, options = {}) {
     assertCase(caseData);
-    const format = byId.get(formatId);
-    if (!format || !format.dataTypes.includes('case')) throw new TypeError(`unsupported case export format ${formatId}`);
-    const content = format.id === 'case-json'
-      ? jsonContent(caseData)
-      : csvContent(caseData, options.fieldMeta ?? {});
+    const format = formatsById.get(formatId);
+    if (!format) throw new TypeError(`unknown export format: ${String(formatId)}`);
+
+    // case-json is the restorable format, so the case is serialised verbatim:
+    // no reordering, no coercion, no "tidying". Anything else would make the
+    // round trip lossy in a way nobody would notice until a case came back
+    // wrong.
+    const content = format.id === 'case-json' ? JSON.stringify(caseData, null, 2) : caseCsv(caseData, options);
+
     return Object.freeze({
       contractVersion: CONTRACT_VERSION,
       schemaId: CASE_SCHEMA_ID,
