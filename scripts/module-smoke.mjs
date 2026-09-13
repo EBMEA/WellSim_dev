@@ -126,6 +126,26 @@ const ALLIFT = {
   gates: { naturalFlow: false, nearGasCompression: false, sourGasHigh: false, excludeJetPump: false },
 };
 
+// the sensitivity tables' own default rows (OIL_SENS_ROWS / GAS_SENS_ROWS in
+// app.js) with the columns each lift type shows, plus the three future
+// reservoir pressures the Pres column offers
+const OIL_SENS = {
+  ...OIL,
+  vlpSets: [
+    { label: 'VLP1', thpPsi: '700', gorScfStb: '5000', wcPct: '0', tubingIdIn: '2.992' },
+    { label: 'VLP2', thpPsi: '700', gorScfStb: '5000', wcPct: '40', tubingIdIn: '2.992' },
+    { label: 'VLP3', thpPsi: '700', gorScfStb: '5000', wcPct: '80', tubingIdIn: '2.992' },
+  ],
+  presList: ['3550', '3000', '2500'],
+};
+const GAS_SENS = {
+  ...GAS,
+  vlpSets: [
+    { label: 'VLP1', thpPsi: '2440' }, { label: 'VLP2', thpPsi: '2000' }, { label: 'VLP3', thpPsi: '1200' },
+  ],
+  presList: ['3800', '3200', '2600'],
+};
+
 const ML_OIL = {
   ...OIL, mlMode: 'multi',
   mlLayers: [
@@ -148,7 +168,7 @@ const CHECKS = [
   ['Oil · Well model', 'calibrate from test', 'oil/calibrate', OIL, (r) => r.matchedPermMd > 0 && `matched K ${r.matchedPermMd.toFixed(2)} mD, J ${r.j?.toFixed(3)}`],
   ['Oil · Well model', 'gas lift performance curve', 'oil/gaslift', { ...OIL, liftType: 'gaslift', injDepthTvdM: '2490.92', injRateMMscfd: '1.5' }, (r) => r.currentInjMMscfd > 0 && `inj ${r.currentInjMMscfd} MMscf/d, ${Object.keys(r).length} fields returned`],
   ['Oil · Well model', 'multi-layer IPR', 'oil/nodal', ML_OIL, (r) => r.op?.qOilStbD > 0 && `q ${r.op.qOilStbD.toFixed(0)} stb/d, ${r.layers?.length ?? '?'} layers`],
-  ['Oil · Well model', 'VLP/IPR sensitivities', 'oil/sensitivity', OIL, (r) => (r.vlpFamily?.length ?? 0) >= 0 && `${r.vlpFamily?.length ?? 0} VLP sets, ${r.iprFamily?.length ?? 0} IPR sets`],
+  ['Oil · Well model', 'VLP/IPR sensitivities', 'oil/sensitivity', OIL_SENS, (r) => r.vlpFamily?.length > 0 && r.iprFamily?.length > 0 && `${r.vlpFamily.length} VLP sets, ${r.iprFamily.length} IPR sets`],
   ['Oil · ESP', 'coupled ESP solve', 'oil/esp', OIL_ESP, (r) => r.op?.qOilStbD > 0 && `q ${r.op.qOilStbD.toFixed(0)} stb/d, dP ${r.point.dpPsi.toFixed(0)} psi, ${r.point.thrust}`],
   ['Oil · ESP', 'match stages', 'oil/espstages', OIL_ESP, (r) => (r.stages ?? r.matchedStages) > 0 && `${r.stages ?? r.matchedStages} stages`],
   ['Oil · ESP', 'match wear (actual Pint/Pdis)', 'oil/espwear', OIL_ESP, (r) => r.wearFactor != null && `wear ${(r.wearFactor * 100).toFixed(1)} %`],
@@ -163,7 +183,7 @@ const CHECKS = [
   ['Gas · Well model', 'nodal', 'gas/nodal', GAS, (r) => r.op?.qMMscfd > 0 && `q ${r.op.qMMscfd.toFixed(3)} MMscf/d, Pwf ${r.op.pwfPsi.toFixed(0)} psi`],
   ['Gas · Well model', 'calibrate from tests', 'gas/calibrate', GAS, (r) => (r.j ?? r.matchedPermMd) && `J ${r.j?.toFixed(5) ?? '—'}, K ${r.matchedPermMd?.toFixed(2) ?? '—'}`],
   ['Gas · Well model', 'multi-layer IPR', 'gas/nodal', ML_GAS, (r) => r.op?.qMMscfd > 0 && `q ${r.op.qMMscfd.toFixed(3)} MMscf/d, ${r.layers?.length ?? '?'} layers`],
-  ['Gas · Well model', 'sensitivities', 'gas/sensitivity', GAS, (r) => (r.vlpFamily?.length ?? 0) >= 0 && `${r.vlpFamily?.length ?? 0} VLP sets`],
+  ['Gas · Well model', 'sensitivities', 'gas/sensitivity', GAS_SENS, (r) => r.vlpFamily?.length > 0 && r.iprFamily?.length > 0 && `${r.vlpFamily.length} VLP sets, ${r.iprFamily.length} IPR sets`],
   ['Gas · Reserve', 'prod data + p/Z', 'gas/reserve', { ...GAS, presSource: 'prod' }, (r) => r.fit?.giipBscf > 0 && `GIIP ${r.fit.giipBscf.toFixed(2)} Bscf, Gp tot ${r.rows[r.rows.length - 1].gpTotalBscf?.toFixed(4)}`],
   ['Gas · Reserve', 'Pres from SITHP', 'gas/reserve', { ...GAS, presSource: 'sithp' }, (r) => r.fit?.giipBscf > 0 && `GIIP ${r.fit.giipBscf.toFixed(2)} Bscf`],
   ['Gas · Reserve', 'reservoir limit', 'gas/reserve', { ...GAS, presSource: 'rlt' }, (r) => r.rlt?.giipBscf > 0 && `GIIP ${r.rlt.giipBscf.toFixed(2)} Bscf`],
@@ -174,7 +194,7 @@ const CHECKS = [
   ['Water · Producer', 'ESP on the same catalogues', 'oil/esp', { ...WATER_PROD, liftType: 'esp', espPumpMode: 'db', espPumpName: 'ESP B 538-3600', espStages: '145', espFreqHz: '50', pumpAhM: '2985', prPsi: '4800' }, (r) => r.op?.qOilStbD > 0 && `q ${r.op.qOilStbD.toFixed(0)} bbl/d, dP ${r.point.dpPsi.toFixed(0)} psi`],
   ['Water · Injector', 'injectivity nodal', 'water/injector', WATER_INJ, (r) => r.op?.qBpd > 0 && `q ${r.op.qBpd.toFixed(0)} bbl/d, BHIP ${r.op.pwfPsi.toFixed(0)} psi`],
   ['Water · Injector', 'calibrate', 'water/injcalibrate', WATER_INJ, (r) => (r.jInj ?? r.matchedPermMd) && `J inj ${r.jInj?.toFixed(4) ?? '—'}`],
-  ['Water · Injector', 'sensitivities', 'water/injsensitivity', WATER_INJ, (r) => (r.grid?.length ?? r.sets?.length ?? 0) >= 0 && 'grid returned'],
+  ['Water · Injector', 'sensitivities', 'water/injsensitivity', { ...WATER_INJ, vlpSets: [{ label: 'VLP1', thpPsi: '1500' }, { label: 'VLP2', thpPsi: '2000' }, { label: 'VLP3', thpPsi: '2500' }], presList: ['4800', '4400', '4000'] }, (r) => r.vlpFamily?.length > 0 && `${r.vlpFamily.length} THP sets, ${r.iprFamily?.length ?? 0} injectivity lines`],
   ['Oil · Well model', 'match head from a test point', 'oil/matchhead', OIL_MATCH, (r) => r.matchHead > 0 && `head ${r.matchHead.toFixed(4)}, target ${r.targetPsi} psi, marched ${r.marchedPsi?.toFixed(0)}`],
   ['Oil · ESP', 'match head from measured Pint/Pdis', 'oil/matchhead', OIL_ESP, (r) => r.matchHead > 0 && `head ${r.matchHead.toFixed(4)}, Pdis target ${r.targetPsi} psi`],
   ['Oil · ESP', 'match separator efficiency', 'oil/espsepeff', OIL_ESP, (r) => r.sepEffPct != null && `sep eff ${Number(r.sepEffPct).toFixed(1)} %`],
