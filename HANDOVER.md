@@ -1,274 +1,320 @@
 # WellSim — handover
 
-**Live:** **[https://wellssim.app](https://wellssim.app)** since 12 Sep 2026 (note the double s) — Spaceship shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `dddd787`; wellsim.app (single s) retired 8 Sep ·
-**Codex comparison:** https://bldrz.net ·
-**Repo:** https://github.com/EBMEA/WellSim_dev · **Manual:** `src/ui/help.html` (served at /help.html by a local run)
+**Live:** **[https://wellssim.app](https://wellssim.app)** (note the DOUBLE s) — Spaceship
+shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `f98817e` ·
+**Repo:** https://github.com/EBMEA/WellSim_dev ·
+**Manual:** `src/ui/help.html` (served at /help.html) ·
+**Codex comparison:** https://bldrz.net
 
-**WELLSIM.APP IS RETIRED.** On 8 September 2026 the owner retired the domain
-outright and took WellSim off the Hetzner box. **There is no production site.**
-The app runs **locally** (`npm start`, http://localhost:3355) and as the
-portable exe until a new domain is chosen and stood up.
+**Where it stands, 13 September 2026.** `main` is at `f98817e`, 213 commits, working
+tree clean, **344/344 tests passing** and the sweep **43/43 PASS**. The repository, the
+live site and this workstation all describe the same product:
 
-What was done to `91.98.23.255`, in order, each step verified:
-
-1. Final `data/` pull taken and **read back**: 4 accounts, 8 cases, every one
-   parsing as a WellSim case. Captured with the 30-day backup history, the
-   configs and a server inventory to `WellSim-ServerRetirement-2026-09-08`
-   on **D: and F:**, 11/11 checksums OK on both.
-2. The two `wellsim.app` blocks removed from `/etc/caddy/Caddyfile`
-   (backed up as `Caddyfile.bak-20260908`), `caddy validate` run **before**
-   the reload, then reloaded.
-3. `systemctl disable --now wellsim.service wellsim-backup.timer` —
-   both inactive and disabled, port 3355 free on the box.
-4. `/opt/wellsim` → `/opt/wellsim.retired-2026-09-08` and
-   `/var/backups/wellsim` → `/var/backups/wellsim.retired-2026-09-08` —
-   moved rather than deleted, so the irreversible step stayed the owner's.
-5. **The owner then took that step, and it is verified:** `/opt/wellsim*` and
-   `/var/backups/wellsim*` are gone from the box, port 3355 is free, the
-   Caddyfile names only thepwf.net and bldrz.net (both HTTP 200) and its log
-   carries no warnings. **WellSim's data is off that machine.** The only
-   copies now are the capture on D: and F: and the workstation's own `data/`.
-6. **The units went too**, also verified: `wellsim.service`,
-   `wellsim-backup.service`, `wellsim-backup.timer` and
-   `/usr/local/bin/wellsim-backup` are off the disk and systemd knows no
-   wellsim unit at all. Caddy stayed active through it and thepwf.net and
-   bldrz.net still answer 200, with no failed units on the box. All four
-   files are committed verbatim under `deploy/`, so nothing was lost.
-7. **The DNS records are deleted**, 8 September. The `wellsim.app` zone at
-   Cloudflare held exactly two records — `A wellsim.app` and
-   `A www.wellsim.app`, both → `91.98.23.255`, unproxied — and no MX, TXT or
-   verification record of any kind, so removing them broke no mail and no
-   domain ownership proof. **The zone is now empty (0 records).** Both names
-   return no address; `www` returns NXDOMAIN outright. thepwf.net and
-   bldrz.net answered 200 throughout. The name now fails to resolve rather
-   than resolving to a machine that ignores it.
-
-**The box lives on and still serves the other two sites**, which were never
-touched: thepwf.net and bldrz.net both verified HTTP 200 after the Caddy
-reload, their `www` names 301 as before. bldrz keeps its own PostgreSQL
-database and runtime user.
-
-Still outstanding:
-
-- **the `wellsim.app` registration itself.** The zone still exists at
-  Cloudflare — empty, 0 records — and the domain is still registered in the
-  owner's name. Nothing depends on either, and keeping them costs only the
-  renewal: it holds the name against anyone else registering it, and an empty
-  zone serves nothing. **Letting it lapse is a one-way door** — the name
-  becomes available to the world, and the brochure and meeting invite in
-  ALdocs still print it. Whichever way, it is the owner's call at the
-  registrar, and there is no hurry.
-- the `wellsim` service user (uid 996, `/usr/sbin/nologin`, home
-  `/opt/wellsim` which no longer exists) is all that is left of the app on
-  that box. It owns nothing and can log in nowhere; `userdel wellsim` closes
-  it whenever it suits, and is the last thing to do there.
-- ~~when the new domain exists~~ **it does: `wellssim.app`, 11 September 2026.**
-  See `deploy/CUTOVER-wellssim-app.md` for the launch order,
-  `deploy/cloud-init-wellssim.yaml` to build the box, and
-  `deploy/Caddyfile.wellsim`, which now names the new domain.
-  **Every published reference to wellsim.app still needs updating in one pass** —
-  the manual, README, README-PORTABLE, the brochure and the meeting invite in
-  ALdocs all still print a name that resolves nowhere.
-
-The containment travels with the retirement: the account store was shut when
-the site went down, and any new box must pass the same check before DNS points
-at it — `/api/accounts/status` must report
-`{"enabled":false,"registrationEnabled":false}`. **`main` now CONTAINS `27ea04e`**
-(verified with `git merge-base --is-ancestor`), so the old blanket ban on
-deploying it is spent — but the check itself still has to pass on the new box
-before DNS points at it.
-
-**The containment held to the end, and it still binds the next box.** While
-the site ran, `/api/accounts/status` reported
-`{"enabled":false,"registrationEnabled":false,"mode":"legacy-web"}` and the
-Sign in entry was hidden. It held two ways over — the gate commit `27ea04e` on
-the deployed branch, AND `WELLSIM_ENABLE_LEGACY_CASE_STORE` absent from
-`wellsim.service` (`Environment=PORT=3355 NODE_ENV=production`). Either alone
-would keep registration closed. Both requirements carry forward verbatim to
-whatever machine serves the new domain.
-
-**`main` IS NOW SAFE TO DEPLOY, and earlier revisions of this file said the
-opposite.** `27ea04e` was not on `main` until the 10 September merge; it is an
-ancestor now, so a fresh box built from `main` does **not** reopen public
-registration. The check in `deploy/README-server-rebuild.md` still has to pass
-before any DNS points at anything — the gate being in the code is one of the
-two halves, not both.
-
-**Current working tree:** clean, **344/344 tests passing**. The PostgreSQL
-tenancy foundation — `db/`, `src/server/database.js` and their tests — was
-removed on 12 Sep; it was dormant in production (`WELLSIM_DATABASE_ENABLED`
-was never set), and the fourteen checks covering it went with it.
-
-**Where the work sits, 11 September 2026:** `main` at `23ecd4f`
-(199 commits), pushed and in sync with a **new** remote. The feature branch
-is gone — merged and retired the same day.
-
-- `merge/gas-forecast-into-v2` **fast-forwarded into `main`**. `main` was a
-  strict ancestor of it (0 behind, 114 ahead), so there is **no merge
-  commit** and the history is linear. The branch was then deleted locally
-  and on the new remote; it was left in place on `origin`.
-- **`main` no longer lacks `27ea04e`.** Earlier revisions of this file and of
-  the backup READMEs warned that it did and that `main` "must not be deployed
-  anywhere". That is resolved. There is still nothing to deploy to.
-
-**The remotes disagree, and it matters which one you reach:**
-
-| remote | repository | `main` |
+| | commit | note |
 | --- | --- | --- |
-| `wellsim-dev` | `EBMEA/WellSim_dev` | `23ecd4f` — **current**, default branch |
-| `origin` | `aleimam/wellsim` | `de2393c` — 120 commits behind |
-| `ebmea` | `EBMEA/wellssim` | untouched (note the double `s`) |
+| `wellsim-dev/main` (GitHub) | `f98817e` | default branch, **public** |
+| https://wellssim.app | `f98817e` | verified from outside, not from the console |
+| `D:\WellSim-FullBackup-2026-09-13` | `f98817e` | bundle cloned back, tree matches |
+| `D:\WellSim_2.8` (portable exe) | `768d4d1` | **one commit behind, on purpose** |
 
-`origin` has received **none** of this work, and its copy of the feature
-branch (`8423d73`) is five commits behind what was merged. Local `main` now
-tracks `wellsim-dev/main` — it previously tracked nothing at all — so a bare
-`git push` or `git pull` goes to `EBMEA/WellSim_dev`. Reaching the other two
-takes an explicit remote name.
+The portable is the only thing not at `f98817e`: build 2.8 predates the water-well UI
+work by one commit. Its physics is identical; only its embedded UI is older.
 
-**`EBMEA/WellSim_dev` is a public repository.** Before the first push the
-whole history on every branch was scanned for private keys, cloud tokens and
-inline secret assignments; nothing was found outside false positives in the
-vendored `src/ui/vendor/plotly.min.js`. What *is* public beyond code was
-published knowingly: `deploy/` carries real hostnames, the Caddy config and
-the systemd units as they ran, and this file narrates the infrastructure and
-the credential purge in detail. None of it is a credential. The gitignore
-that keeps `data/`, the workbooks, the ESP catalogue and `ALdocs/` out of git
-is what makes that safe, and it was re-checked.
+**Three deliverables, not one.** The website, the portable exe, and a local run
+(`npm start`, http://localhost:3355) are the same app. The portable needs no domain
+and no account, and is what goes to a client on a USB stick.
 
-**12 September 2026 — WellSim is LIVE at https://wellssim.app.** Verified
-from outside, not from the console:
+---
 
-- Certificate: **Let's Encrypt**, SAN `wellssim.app` + `www.wellssim.app`,
-  valid to 10 Dec 2026, full chain OK. Two self-signed certificates were
-  generated in cPanel before the real one issued; both are gone.
-- `/` serves the WellSim UI (title *WellSim — Nodal Analysis*, asset stamp
-  `2026-09-10a`), `/help.html` 74 KB, `app.js` 212 KB, vendored Plotly 4.5 MB
-  — all 200 over HTTPS.
-- **Containment holds:** `/api/accounts/status` →
+## 13 September — the water well tab
+
+One commit, `f98817e`, six user-interface changes. **No physics moved**: every solved
+answer matches the build before it.
+
+- **FTHP kept losing its "psi", and the schema was never at fault.** `relabel()`
+  assigned `label.textContent`, which deletes the label's children — including the
+  `<span class="unit">` inside it — so the unit vanished the first time a well-type
+  switch ran and never came back. It now replaces only the label's own text node.
+  That fixed **four** fields: FTHP / Injection THP and the three test-block labels.
+- **Test water rate follows the lift.** An unlifted water well solves near 1836 bbl/d
+  and an ESP well near 4329, so one default cannot suit both: 2000 on natural and gas
+  lift, **4300 on ESP**, 2000 again on an injector. It is exchanged only while the
+  field still holds the other default, so a typed value is never overwritten.
+- **Measured Pint / Pdis (4000 / 4850 psi) are now inputs** on the water ESP block,
+  with *Design min intake P* at 300 psi beside them. This closed a UI gap, not a
+  physics one: `oilMatchHead` has read `espMeasPintPsi` / `espMeasPdisPsi` all along
+  and REFUSES an ESP match without them, so that button could never have succeeded on
+  a water well.
+- **A wear match was added**, mirroring the oil tab (`oil/espwear`). There is
+  deliberately **no separator-efficiency match**: water carries no free gas, free gas
+  at intake reads 0%, and `oil/espsepeff` returns *below-range* here. The markup says
+  so, so nobody restores it later thinking it was an oversight.
+- **The water ESP match buttons were invisible, and always had been** — the stages
+  button too, which is why nobody had ever seen it. `switchWaterEspPump()` clears the
+  row's authored `display:none` and was called from the pump dropdown only, where
+  oil's equivalent is called in four places. Worse, the CATALOGUE select installs one
+  handler for both tabs and always called the OIL switch, so picking a water catalogue
+  could never reveal the water row.
+
+**An injector keeps whatever its lift radio last held**, so every one of these checks
+gates on WELL TYPE first and lift second. Getting that order wrong left an injector
+showing an ESP test rate and a gas-lift SG field.
+
+## 13 September — backup, and the gap on F:
+
+`D:\WellSim-FullBackup-2026-09-13`, sealed at `f98817e`, 187 MB, **44/44 checksums
+OK**. The bundle was cloned back as a restore drill: `main` at `f98817e`, 213 commits,
+tree `2f9ffc1` identical to the working copy, and `npm test` 344/344 plus the 43/43
+sweep run **inside the restored clone**, not in the original.
+
+***F: HAS BEEN DETACHED SINCE 10 SEPTEMBER.*** It holds a clean verified copy as of
+`1d261be` and nothing since — four backups' worth of work with no second copy,
+including both portable builds and every case saved since. The SOURCE is safe three
+ways over (GitHub, the live server, here); what lives **only on D:** is the workbooks,
+the ESP catalogue, ALdocs, the client cases and the portable binaries.
+
+## 12–13 September — the IP separation
+
+The owner asked to remove another contributor's work from the public repository, for
+legal/IP separation. What was done, and what was **not**:
+
+- **Dropping the commits was measured and rejected.** The 15 commits by `aleimam` are
+  non-contiguous and 103 of the 115 later commits conflict with their removal. Worse,
+  one of them is `27ea04e` — the containment gate itself — so a history rewrite that
+  dropped them would have reopened public registration on a live site. That is why the
+  history still carries the name. **`pre-author-rewrite-2026-09-12` tags the state
+  before this work began.**
+- **The content was replaced instead, clean-room.** `docs/specs/export-contract.md`
+  and `docs/specs/case-portability-and-account-gate.md` were written as normative
+  specifications from untainted sources, the architecture documents were deleted, and
+  `src/ui/export.js` and the account gate in `src/server/accounts.js` were
+  reimplemented from those specs.
+- **Measured afterwards with `git blame`, not asserted.** `src/ui/export.js` went from
+  **369/369** lines attributed to `aleimam` to **108/338**; `tests/export.test.js` from
+  140/140 to 56/178. Repo-wide the surviving share is **633 of 26,354 lines**, and 158
+  of those are generated `package-lock.json`. The residue is real and is mostly
+  declarative: format tables, constant names and function signatures that the contract
+  itself dictates. **Attribution by blame is not the same as copied expression**, and
+  this file records the number rather than a claim of a clean sweep.
+- The dormant PostgreSQL foundation — `db/`, `src/server/database.js` and their tests —
+  was **removed** in the same pass. It was never enabled in production
+  (`WELLSIM_DATABASE_ENABLED` was never set) and the fourteen checks covering it went
+  with it. A side effect worth knowing: **that removal took the last top-level `await`
+  out of the server graph.**
+
+The account gate was rewritten around one wrapper — `caseStoreEnabled()`,
+`registrationOpen()`, `storeShut()` and a `gated(handler)` applied at the export
+boundary — with `tests/account-gate.test.js` covering it by switch combination.
+`accountStatus` is deliberately **un**gated, because a caller must always be able to
+learn that the store is shut.
+
+## 12 September — portable 2.8, and the march defaults
+
+**Nine fields stopped being editable.** They are the marches' own constants, not
+properties of the well in front of the analyst:
+
+```
+oil    Roughness · Oil viscosity (tubing) · Water SG · Cp
+water  Roughness · Cp
+gas    Base roughness · Cond. viscosity · Surface tension · Cp
+```
+
+They are marked `'fixed'` in the form schema and render as **hidden inputs rather than
+being deleted**, and that distinction is the whole point: the schema drives both the
+form and the payload, because `collect()` reads every field back out of the DOM by id.
+Deleting an entry would have stopped the value reaching the solver and quietly changed
+every answer. As hidden inputs they still collect, save, export and round-trip.
+
+Proved still live rather than trusted: perturbing the hidden gas roughness to 0.05
+moved the rate 13.38 → 12.72 MMscf/d, and restoring it returned exactly 13.38.
+
+**Lift-gas SG is conditional, not hidden.** It describes the injected gas, so it shows
+on the water well only while that well is actually gas lifted, and never on an
+injector. *A trap when re-testing it:* at the demo well's default injection rate of
+ZERO the gas gravity cannot affect anything, and a first check wrongly suggested the
+field was dead. Inject 1.5 MMscf/d and the well goes 1836 → 5112 bbl/d; SG 1.2 then
+moves it to 4678.
+
+**Portable 2.8** was built the same day from `768d4d1`, signed `CN=M. El-Ashry`,
+Authenticode Valid, DigiCert timestamped, at `D:\WellSim_2.8\`. Verified by RUNNING
+it, not by trusting the build log: 38/38 module smoke against the exe, and the page
+asks for `/vendor/plotly.min.js` and gets all 4.4 MB from the exe, so it charts
+offline. 2.7 is superseded but still on disk.
+
+One difference that looks alarming and is not: the portable reports
+`{"enabled":true,"registrationEnabled":false,"mode":"portable"}` while the website
+reports `{"enabled":false,…,"mode":"legacy-web"}`. The portable's *enabled* refers to
+its OWN `cases\` folder beside the exe, not the web account store. **The web
+containment is not weakened; they are different stores.**
+
+## 12 September — WellSim went live at wellssim.app
+
+Verified from outside, and re-verified at the 13 September capture:
+
+- Certificate **Let's Encrypt**, SAN `wellssim.app` + `www.wellssim.app`, valid to
+  10 Dec 2026, full chain OK. Two self-signed certificates were generated in cPanel
+  before the real one issued; both are gone.
+- The deployed `app.js` is **byte-identical** to this workstation's once line endings
+  are normalised — 220,001 bytes both, the raw 4,523-byte gap being exactly one byte
+  per line, CRLF here against LF on the Linux checkout.
+- **Containment holds:** all seven account endpoints refuse with
+  `legacy_case_store_disabled`, and `/api/accounts/status` reports
   `{"enabled":false,"registrationEnabled":false,"mode":"legacy-web"}`.
-- **38/38 module smoke** passes against the live URL — every module, both
-  fluids, both lift types, the injector, the forecast.
+- **38/38 module smoke** against the live URL — every module, both fluids, both lift
+  types, the injector, the forecast.
 - Headers: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`.
 
-**Where it runs, and the choice behind it.** The owner chose **Spaceship
-shared hosting** over the Hetzner VPS: cPanel on LiteSpeed at
-`66.29.148.162` (`server52.shared.spaceship.host`), the app under CloudLinux
-Node.js Selector / Passenger, **Node 24.20.0** — the same version as this
-workstation. Application root `/home/solmuygadd/wellsim`, URL at the domain
-root, startup file **`app.cjs`**. The runbook for it is
-`deploy/SHARED-HOSTING-wellssim.md`; the VPS files stay in `deploy/` as the
+**Where it runs, and the choice behind it.** The owner chose **Spaceship shared
+hosting** over a Hetzner VPS: cPanel on LiteSpeed at `66.29.148.162`
+(`server52.shared.spaceship.host`), the app under CloudLinux Node.js Selector /
+Passenger, **Node 24.20.0** — the same version as this workstation. Application root
+`/home/solmuygadd/wellsim`, URL at the domain root, startup file **`app.cjs`**. The
+runbook is `deploy/SHARED-HOSTING-wellssim.md`; the VPS files stay in `deploy/` as the
 path back.
 
 **Two things that went wrong on the way, both worth knowing:**
 
-- The app was first mounted at `/wellssim.app/` (a subpath) with the domain
-  root serving a directory listing. The UI is written for the root — absolute
-  `/api/…`, `/app.js`, and a service worker at `/sw.js` — so a subpath mount
-  boots and then cannot load itself. Fixed by setting Application URL to the
-  bare domain.
-- The first real deploy answered **503 on every path**. Passenger `require()`s
-  the startup file, and Node cannot `require()` an ES module whose graph has
-  a top-level `await` — ours has one at `src/server/server.js:15`. The ESM
-  `app.js` was replaced by **`app.cjs`** (CommonJS, dynamic `import()`); the
-  failure was reproduced and the fix verified locally on the same Node before
-  redeploying. `deploy/SHARED-HOSTING-wellssim.md` had said "must stay ESM";
-  that was the wrong half of the truth and is corrected.
+- The app was first mounted at `/wellssim.app/` (a subpath) with the domain root
+  serving a directory listing. The UI is written for the root — absolute `/api/…`,
+  `/app.js`, a service worker at `/sw.js` — so a subpath mount boots and then cannot
+  load itself. Fixed by setting Application URL to the bare domain.
+- The first real deploy answered **503 on every path.** Passenger `require()`s the
+  startup file, and Node cannot `require()` an ES module whose graph carries a
+  top-level `await` — ours had one at `src/server/server.js:15`. The ESM `app.js` was
+  replaced by **`app.cjs`** (CommonJS, dynamic `import()`); the failure was reproduced
+  and the fix verified locally on the same Node before redeploying.
+  `deploy/SHARED-HOSTING-wellssim.md` had said "must stay ESM" — the wrong half of the
+  truth, now corrected.
 
-**Still true on this host:** `data/` is empty — no client cases were uploaded,
-by decision pending the shared-hosting risk note in the runbook. No nightly
-backup cron exists yet. `crt.sh` will show the certificate once its indexer
-catches up; its absence there is lag, not a problem.
+**Still true on this host:** `data/` is empty — no client cases were uploaded, by
+decision, pending the shared-hosting risk note in the runbook. **No nightly backup
+cron exists.**
 
-**11 September 2026 — the relaunch begins.** The owner bought
-**`wellssim.app`** from Spaceship (note the DOUBLE S; the retired name is
-`wellsim.app`, single s, still registered and still empty at Cloudflare).
-Checked the same day:
+## 11 September — the domain, and the box that was never built
 
-- `wellssim.app` resolves to Spaceship parking (`34.216.117.25`,
-  `54.149.79.189`, AWS us-west-2) on NS `launch1`/`launch2.spaceship.net`.
-  Port 80 answers 200 with a parking page; **443 times out** and `www` does
-  not resolve. No MX, no TXT.
-- **`.app` is on the HSTS preload list.** Browsers force HTTPS for it with no
-  click-through, so that parking page is invisible in practice and the name
-  is dark until a certificate issues. There is no http-only state to test in.
-- `deploy/Caddyfile.wellsim` named the retired domain and would have asked
-  Let's Encrypt to cover a dead name. It now names `wellssim.app`.
+The owner bought **`wellssim.app`** from Spaceship. The retired name is `wellsim.app`,
+single s, still registered and still empty at Cloudflare.
 
-**The server is not created yet, and this workstation cannot create it.**
-There is no `hcloud` CLI, no `HCLOUD_TOKEN`, no `~/.config/hcloud` and an
-empty `~/.ssh` — the deliberate outcome of the 8–9 September purge. Creating
-it needs the owner at the Hetzner console.
+**`.app` is on the HSTS preload list.** Browsers force HTTPS for it with no
+click-through, so there is no http-only state to test in and a parking page is
+invisible in practice.
 
-- **Plan: Hetzner Cloud CX22** (2 vCPU / 4 GB / 40 GB, Falkenstein or
-  Nuremberg), or `CAX11` on ARM. The app needs **Node and Caddy only** — the
-  database boundary is disabled, though `pg` must still be installed or the
-  server crash-loops.
-- `deploy/cloud-init-wellssim.yaml` performs the build order as user-data and
-  writes its own verification to `/root/BOOTSTRAP-REPORT.txt`. It clones the
-  public repo **pinned to an exact commit** and aborts the boot on mismatch;
-  it leaves **Caddy stopped** until DNS moves; it restores no `data/` and
-  creates no account, both on purpose.
-- **Rotate the Hetzner and Cloudflare tokens first.** They were deleted here
-  but never revoked, and `wellsim-deploy` is still in the old box's
-  `authorized_keys`. Building the new machine is the moment to close that so
-  the two never share a credential.
+**The Hetzner plan was prepared and then not taken.** `deploy/cloud-init-wellssim.yaml`
+still builds a CX22 from user-data, pinned to an exact commit, aborting the boot on
+mismatch and leaving Caddy stopped until DNS moves. It is the path back if shared
+hosting disappoints — nothing more. **Rotating the two API tokens was listed as the
+first step of that plan and has still not happened** (see *Still open*).
 
-**What was actually run on 10 September, and what it showed.** None of this
-is carried forward from an earlier entry:
+## 10 September — the backups, the pruning and the hash sweep
 
-- `npm test` — **345/345 pass, 0 fail**, 138 s, on the merged tree.
-- The dev server was started from `.claude/launch.json` and driven in a
-  browser, then stopped. It logged **`bound to 127.0.0.1 (this machine
-  only)`** — `9943e99` still doing its job — and `PostgreSQL boundary:
-  disabled`. Oil Well solved at 2132 stb/d, Pwf 2647 psi, AOF 6369. Gas Well
-  → Forecast produced the p/Z tank + nodal chart and a 60-row table, every
-  request 200, no console or server errors.
-- The behaviour `de2393c` describes was confirmed **directly, in the UI**:
-  the chart carries **one** FTHP line — a history trace and a forecast trace
-  of the same quantity — and **FTHT appears only as a table column**, not as
-  a chart trace.
-- A full backup was taken and mirrored: **`WellSim-FullBackup-2026-09-10` on
-  D: and F:**, 187 MB, **26/26 checksums OK on each**, manifests identical.
-  The bundle was cloned back from *both* copies as a restore drill and each
-  landed on `main` `3a0a720`, tree `9afa218d`, matching the working copy.
-  Its `local-data/` tarball was **rebuilt from disk, never copied forward** —
-  140 entries, 81 case files, **zero `users.json`** — and searched for hash,
-  salt and password material before being sealed. Nothing found.
-- Later the same day, after this file was first updated and pushed
-  (`50b345f`): **`WellSim-FullBackup-2026-09-10b`** on both drives, sealed at
-  `50b345f`, superseding `-10`; and a fresh **`WellSim-Handover-2026-09-10`**
-  on both drives, 181/181, with `npm test` 345/345, the 43/43 sweep and the
-  38/38 module smoke all run against the exported copy itself. Its
-  `07-workstation-data` no longer carries credential material, its
-  `03-specification` now includes `aldocs.tar.gz` (the lift-selection
-  workbook is the authority for the metres depth band; earlier handovers
-  omitted it), and it has no server-data tarball because there is no server.
-- **The backup series was pruned to three** (`-09d`, `-10`, `-10b`) and the
-  handovers to one, on both drives — 46 + 4 folders deleted, ~2.7 GB freed
-  per drive. Before deletion, two things that existed *only* in the pruned
-  folders were rescued into `-10b`: the **build hash records for portables
-  1.3–2.5** (`portable/build-records-1.3-2.5/`, the only surviving proof of
-  what those now-deleted binaries were) and the **5 Sep evening handover
-  addendum** (`records/`). The one real loss: intra-day server pulls from
-  5–8 Sep; the retirement capture keeps one per day and the final pull.
-- **The password hashes were removed from every archive on both drives** —
-  see the account under *Operational knowledge*, which this replaces.
+- The backup series was **pruned to three** and the handovers to one, on both drives —
+  46 + 4 folders deleted, ~2.7 GB freed per drive. Two things that existed *only* in
+  the pruned folders were rescued first: the **build hash records for portables
+  1.3–2.5** (`portable/build-records-1.3-2.5/`, the only surviving proof of what those
+  now-deleted binaries were) and the **5 Sep evening handover addendum** (`records/`).
+  The one real loss: intra-day server pulls from 5–8 Sep; the retirement capture keeps
+  one per day and the final pull.
+- **The password hashes were taken out of the archives.** The 9 Sep claim of "14
+  copies" covered the working folder only. A sweep of both drives found the same four
+  hashes in **about 54 folders** — every backup and handover folder copied forward, the
+  retirement capture, the recovery kit, two pre-rename `petrosim_*` backups, 25 loose
+  `users.json` files, and 33 more inside tarballs, including 14 per drive nested
+  *inside* another archive where a flat listing could not see them. All of it is gone,
+  verified by a **nested-aware scan: 0 copies in 41 archives, 0 loose.** The recycle
+  bins are the one place not checked. **Deleting a hash is not revoking a password:**
+  anyone who reused theirs elsewhere is unchanged by this.
 
-**The bundle is no longer the only off-machine copy of the recent work.** The
-four commits that `WellSim-FullBackup-2026-09-09d` flagged as unpushed —
-`9fc79be`, `9943e99`, `5025ccf`, `3a0a720` — are on GitHub as of today. The
-Windows Credential Manager problem that blocked that push did not recur; the
-`gh` CLI credential carried it.
+## 8–9 September — wellsim.app (single s) was retired
 
-**The newest portable release is 2.7** (`D:\WellSim_2.7`, also on F:), built
-from `8423d73` and signed `CN=M. El-Ashry`. It carries everything the retired
-site carried, so **the portable is now the delivery vehicle** — demos and
-daily work need no domain at all. *(This paragraph said 2.5 until 10 Sep,
-contradicting the portable section below, which had 2.7 right.)*
+The single-s domain is gone and WellSim no longer runs on the Hetzner box. Each step
+was verified: the final `data/` pull was taken and **read back** (4 accounts, 8 cases,
+every one parsing) into `WellSim-ServerRetirement-2026-09-08` on D: and F:, 11/11
+checksums OK on both; the Caddy blocks were removed after `caddy validate`; the systemd
+units were disabled and then deleted; `/opt/wellsim` and `/var/backups/wellsim` were
+moved rather than deleted so the irreversible step stayed the owner's, and the owner
+took it. **WellSim's data is off that machine.** All four unit files are committed
+verbatim under `deploy/`, so nothing was lost. The Cloudflare zone held exactly two A
+records and no MX, TXT or verification record; **it is now empty.**
 
-The two-device branch/site contract below records the branch discipline. Its
-site half is dormant: there is no site to deploy to, and a green test run was
-never authorisation to release in any case.
+**The box lives on and still serves the other two sites**, which were never touched:
+thepwf.net and bldrz.net, both verified 200 after the reload. bldrz keeps its own
+PostgreSQL database and runtime user.
+
+Two loose ends remain there: the `wellsim.app` **registration** itself (empty zone,
+still in the owner's name — letting it lapse is a one-way door, and the brochure and
+meeting invite in ALdocs still print it) and the `wellsim` service user (uid 996,
+nologin, home `/opt/wellsim` which no longer exists; `userdel wellsim` closes it).
+
+---
+
+## The containment, which binds every host
+
+`/api/accounts/status` must report `{"enabled":false,"registrationEnabled":false}`
+before DNS points at any machine. It holds **two ways over**, and either alone would
+keep registration closed:
+
+1. the gate commit `27ea04e`, which `main` **contains** (verified with
+   `git merge-base --is-ancestor`), and
+2. **`WELLSIM_ENABLE_LEGACY_CASE_STORE` absent from the environment** — it is not in
+   `.cpanel.yml`, not in the cPanel environment panel, and must never be added there.
+
+Earlier revisions of this file said `main` must not be deployed anywhere because it
+lacked `27ea04e`. That was true until the 10 September merge and is not true now.
+
+## The remotes disagree, and it matters which one you reach
+
+| remote | repository | `main` |
+| --- | --- | --- |
+| `wellsim-dev` | `EBMEA/WellSim_dev` | `f98817e` — **current**, default branch, public |
+| `origin` | `aleimam/wellsim` | `de2393c` — far behind, receives none of this work |
+| `ebmea` | `EBMEA/wellssim` | `918329e` — unrelated, note the double `s` |
+
+Local `main` tracks `wellsim-dev/main`, so a bare `git push` or `git pull` goes to
+`EBMEA/WellSim_dev`. Reaching the other two takes an explicit remote name.
+
+**`EBMEA/WellSim_dev` is public.** Before the first push the whole history on every
+branch was scanned for private keys, cloud tokens and inline secret assignments;
+nothing was found outside false positives in the vendored `plotly.min.js`. What is
+public beyond code was published knowingly: `deploy/` carries real hostnames, the Caddy
+config and the systemd units as they ran, and this file narrates the infrastructure in
+detail. **None of it is a credential.** The gitignore that keeps `data/`, the
+workbooks, the ESP catalogue and `ALdocs/` out of git is what makes that safe, and
+`docs.test.js` asserts the git index rather than trusting the ignore rule.
+
+## Still open
+
+- **The Hetzner and Cloudflare API tokens are deleted here but NOT REVOKED.** The
+  Hetzner one is full control of `91.98.23.255`, a live server still serving thepwf.net
+  and bldrz.net, and `wellsim-deploy` is still in its `authorized_keys`. Revoking them
+  in the two consoles is the step that actually closes this.
+- **BitLocker on D: and F: is unverified.** Every non-elevated route was refused;
+  `manage-bde -status` from an elevated prompt, with both drives present, settles it.
+  These drives hold real client cases.
+- **Two credential files sit at the D: root** — `d:\wellssim_deploy-2026-09-11` and
+  `d:\id_rsa` — on a drive whose encryption is unverified. Agent tooling refuses to
+  touch files at a drive root, so removing them is a manual step.
+- **F: is four backups behind** (see 13 September, above).
+- **The service worker can serve one stale load after a deploy.** `sw.js` precaches the
+  BARE paths (`/app.js`, no `?v=`) and matches with `{ ignoreSearch: true }`, so one
+  cached entry answers every stamped request — and `cache.add('/app.js')` refetches
+  that bare URL through the browser's own HTTP cache, which the server allows to live
+  `max-age=300`. **So bumping the asset stamp does not reliably bust the cache within
+  five minutes of the previous load.** The `ignoreSearch` is deliberate and is
+  documented in `sw.js`; whether the trade is right has not been revisited, and nothing
+  was changed. What actually forces a refresh while debugging:
+
+  ```js
+  for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+  for (const k of await caches.keys()) await caches.delete(k);
+  for (const u of ['/', '/app.js', '/style.css', '/export.js', '/sw.js'])
+    await fetch(u, { cache: 'reload' });   // refresh the BARE urls
+  location.reload();
+  ```
+
+  This cost half an hour on 13 September: `curl` showed the server returning the
+  correct file the whole time while the page ran a copy 795 bytes shorter.
+- **Every published reference to the retired `wellsim.app` still needs one pass** — the
+  brochure and the meeting invite in ALdocs still print a name that resolves nowhere.
 
 ---
 
@@ -297,8 +343,11 @@ npm ci
 node src/server/server.js     # http://localhost:3355
 ```
 
-The web server uses Node built-ins plus `pg` for opt-in PostgreSQL. The UI is
-plain HTML/JS. Plotly is the single external asset, from a CDN.
+**The server has NO runtime dependencies** — Node built-ins only, since the
+PostgreSQL boundary was removed on 12 Sep. The UI is plain HTML/JS. Plotly is
+the single external asset, from a CDN on the website and **embedded in the
+portable exe**. `esbuild` and `postject` are devDependencies of the portable
+build alone, so nothing the server needs is fetched at install time.
 
 ```bash
 npm test                          # 344 unit, regression and security tests
@@ -316,16 +365,24 @@ physics bug.
 
 ## 3. Deploying
 
-**There is nowhere to deploy to.** wellsim.app is retired and WellSim no
-longer runs on the Hetzner box; see the retirement record at the top. The
-deliverables are a local run and the portable exe.
+**Deploying needs no shell and no credential.** `.cpanel.yml` at the repository
+root drives cPanel’s **Deploy HEAD Commit** button: push to `wellsim-dev/main`,
+then press it under cPanel → Git Version Control. The recipe is four lines —
+create `tmp/` and `data/`, then `touch tmp/restart.txt`, which is how Passenger
+is told to reload.
 
-When a new domain is stood up, **[deploy/README-server-rebuild.md](deploy/README-server-rebuild.md)**
-is the rebuild order — captured from the live box before it left, including
-the containment check that must pass before DNS points anywhere.
-**[docs/deploy.md](docs/deploy.md)** still describes the deploy METHOD
-accurately (the tar deploy never deletes files; `data/` survives only because
-of that); only its host is gone.
+**THE REPOSITORY MUST BE PUBLIC AT THAT MOMENT.** It was switched to private
+twice on 12 September and the deploy broke both times: git prompts for a
+username because **GitHub answers 404 rather than 403** to anonymous callers on
+a private repo, so it cannot tell "no access" from "no such repo". Making it
+public again fixed it immediately. If it must stay private, the server needs its
+own deploy key, or the release has to go up through File Manager.
+
+The runbook is **[deploy/SHARED-HOSTING-wellssim.md](deploy/SHARED-HOSTING-wellssim.md)**.
+The VPS path back is **[deploy/README-server-rebuild.md](deploy/README-server-rebuild.md)**
+plus `deploy/cloud-init-wellssim.yaml`, both carrying the containment check that
+must pass before DNS points anywhere. **[docs/deploy.md](docs/deploy.md)**
+describes the older tar-over-SSH method, which no current host uses.
 
 The one rule that is easy to forget: **bump the asset stamp in
 `src/ui/index.html` whenever `app.js`, `style.css` or `index.html` changes**,
@@ -354,9 +411,23 @@ src/server/api.js    every endpoint; the UI's only contract. TWO sensitivity
                      oilEspSens solves an ESP FULLY at each future Pres
                      (0.9/0.8/0.7 x Pr) — the one place a pump is solved on a
                      depleted reservoir
-src/server/server.js static file serving, security headers, case database, auth
-src/ui/              index.html · app.js · style.css · help.html (the manual)
+src/server/server.js static file serving, security headers, case store, auth
+src/server/accounts.js  the account gate — one gated() wrapper at the export
+                     boundary; accountStatus is deliberately UNgated
+app.cjs              the Passenger startup file: CommonJS, dynamic import().
+                     Not a build output — committed, and the live site boots
+                     through it
+.cpanel.yml          the four-line deploy cPanel runs on Deploy HEAD Commit
+src/ui/              index.html · app.js · style.css · export.js · sw.js ·
+                     help.html (the manual)
 docs/                deploy.md · user-guide.md · equations.md
+docs/specs/          export-contract.md · case-portability-and-account-gate.md
+                     — NORMATIVE. export.js and the account gate were
+                     reimplemented from these, not the other way round; change
+                     the spec first
+deploy/              the runbooks: SHARED-HOSTING-wellssim.md (current host),
+                     CUTOVER-wellssim-app.md, cloud-init-wellssim.yaml and the
+                     retired box's Caddy config and systemd units, verbatim
 tests/               34 files — workbook cell pins, physics regressions, and
                      docs.test.js, which fails when documentation drifts from
                      the code (stale counts, removed endpoints, an unversioned
@@ -365,9 +436,18 @@ scripts/             validation-sweep.mjs · make-icons.mjs
 ```
 
 **Not in git, and deliberately so** (see `.gitignore`): `data/`,
-`data-backups/`, `oil excel/`, `gas excel/`, `training slids/`, `*.xls*`,
-`*.pptx`. The workbooks are the source material and the client cases are
-private; neither belongs in a repository. They **are** in the F: backup.
+`data-backups/`, `ESP PUMPS DATA Base/`, `ALdocs/`, `oil excel/`, `gas excel/`,
+`training slids/`, `*.xls*`, `*.pptx`, `*.pdf`, and the build outputs
+(`WellSim.exe`, `build/`, `node_modules/`). The workbooks are the source
+material, the ESP catalogues are vendor property carrying a reproduction
+notice, and the client cases are private; none belongs in a repository, least
+of all a public one. They **are** in the D: backups — and, four backups out of
+date, on F:.
+
+`docs.test.js` asserts this against `git ls-files` rather than against
+`.gitignore`, because an ignore rule is a default and not a guarantee: `git
+add -f`, a new tool, or a rule edited in good faith all bypass it silently.
+That guard caught the brochure PDF being tracked on 12 September.
 
 ## 5. Operational knowledge that is not in the code
 
@@ -403,7 +483,12 @@ firewall) while the LAN address refuses. **If a future node tool prompts to
 appeared in the first place.
 
 
-- **The legacy company case store is disabled by default.** Its registration
+- **The legacy company case store is disabled by default, and the gate was
+  rewritten on 12 Sep** around one `gated(handler)` wrapper applied at the
+  export boundary, with `caseStoreEnabled()` / `registrationOpen()` /
+  `storeShut()` beside it and `tests/account-gate.test.js` covering every
+  switch combination. `accountStatus` stays **un**gated on purpose: a caller
+  must always be able to learn that the store is shut. Its registration
   flow accepted a company slug typed by the registrant, which cannot establish
   company membership. `WELLSIM_ENABLE_LEGACY_CASE_STORE=1` is an explicit
   compatibility switch only; even then registration also requires a non-empty
@@ -523,27 +608,29 @@ appeared in the first place.
   from committed source; the outputs (`WellSim.exe`, `build/`) are gitignored
   because they are ~200 MB per build. It serves the identical UI and physics,
   stores cases in a `cases/` folder **beside the exe**, has no accounts, and
-  takes the first free port from 3355. Current: **build 2.7, 9 Sep 2026**,
-  from commit `8423d73`, signed `CN=M. El-Ashry`, at `D:\WellSim_2.7\` and
-  `F:\WellSim_2.7\` — exe, bare zip, distribution zip, both hash records and
-  the certificate. **With the site retired this is the deliverable.**
+  takes the first free port from 3355. Current: **build 2.8, 12 Sep 2026**,
+  from commit `768d4d1`, signed `CN=M. El-Ashry`, at `D:\WellSim_2.8\` — exe,
+  bare zip, distribution zip, both hash records and the certificate. **It is
+  one commit behind `main`** and carries none of the 13 Sep water-well UI work;
+  its physics is identical. 2.7 is superseded but still at `D:\WellSim_2.7\`.
+  **Neither is on F: yet.**
 
-  **2.5, 2.6 and 2.7 are the SAME PROGRAM.** Nothing in `src/`, `portable/`,
-  `build.ps1` or `sea-config.json` has changed since `9025968`; the commits
-  between are the retirement, the credential clearance and the records of
-  both. They are three different FILES because every build takes a fresh
-  signature, timestamp and base `node.exe` — **no two builds of identical
-  source produce the same bytes.** The version number tracks the file, not
-  the program, and 2.5's and 2.6's binaries no longer exist. Check any exe
-  against the `.sha256.txt` bearing its own number; the others are history,
-  never targets.
+  2.8 was **verified by running it**, not by trusting the build log: with the
+  dev server stopped so the exe was the only listener, the project's own smoke
+  suite passed **38/38** against the binary — oil nodal, ESP coupling, gas
+  lift, the reserve solvers, Tarner and Walsh, gas p/Z, condensate properties,
+  water injectivity — and the page asks for `/vendor/plotly.min.js` and gets
+  all 4.4 MB from the exe, so it charts with no internet at all. That last one
+  is the single thing most easily lost in a rebuild, because it depends on
+  `portable/main.js` being the bundled entry rather than the plain server.
 
-  2.7 was **verified by running it**, not by trusting the build log: with the
-  dev server stopped so the exe was the only listener, the project's own
-  smoke suite passed **38/38** against the binary — oil nodal, ESP coupling,
-  gas lift, the reserve solvers, Tarner and Walsh, gas p/Z, condensate
-  properties, water injectivity — and it serves `/vendor/plotly.min.js` with
-  no CDN reference.
+  **2.5 through 2.8 are near-identical PROGRAMS with different bytes.** Every
+  build takes a fresh signature, timestamp and base `node.exe`, so **no two
+  builds of identical source produce the same file.** The version number tracks
+  the FILE, not the program; 2.5's and 2.6's binaries no longer exist. Check an
+  exe against the `.sha256.txt` bearing its own number — the others are
+  history, never targets. **A rebuild will not reproduce 2.8's hashes**, and
+  will fold in the water-well work.
 
   **2.6 is a REBUILD of 2.5, not a new version.** Nothing in `src/`,
   `portable/`, `build.ps1` or `sea-config.json` changed between `9025968` and
@@ -626,10 +713,17 @@ appeared in the first place.
   already gone and nothing depends on it; `git push` uses the credential
   helper.
 
-  **Verified after: `~/.ssh` holds no files, the ssh-agent has no identities,
-  and no token-, secret- or credential-named file remains at the root of
-  either D: or F:.** There is no longer any means on this workstation of
-  reaching that server or either API.
+  **Verified on 8 Sep: `~/.ssh` holds no files, the ssh-agent has no
+  identities, and no token-, secret- or credential-named file remained at the
+  root of either D: or F:.** There was no longer any means on this workstation
+  of reaching that server or either API.
+
+  **THAT LAST CLAUSE IS FALSE AGAIN, AND HAS BEEN SINCE 11 SEPTEMBER.** Two
+  files were placed at the D: root during the wellssim.app deploy —
+  `d:\wellssim_deploy-2026-09-11` and `d:\id_rsa` — on a drive whose
+  encryption has never been verified. They are listed under *Still open*.
+  Nothing here reads or uses them; removing them is a manual step, because
+  agent tooling refuses to touch files at a drive root.
 
   **Deleting a credential is not revoking it.** Both tokens and the
   `wellsim-deploy` key remain valid — at Hetzner, at Cloudflare and in the
@@ -775,8 +869,18 @@ Worth remembering before chasing it as a bug.
    and `gas excel/` in the backup.
 2. Pin it with a test at 15 digits, the way the existing tests do.
 3. Run `npm test` **and** `node scripts/validation-sweep.mjs`.
-4. Verify in the browser — the app is the deliverable, not the API.
-5. Only then deploy, and bump the asset stamp.
+4. Verify in the browser — the app is the deliverable, not the API. **Click
+   Reset first**: the UI restores its last session from localStorage, so a
+   value you typed while testing comes back and masks the default you meant to
+   check. That produced two false results on 13 September.
+5. Only then deploy, and bump the asset stamp. **Then force a real reload** —
+   the stamp alone does not reliably reach a browser that loaded the page in
+   the last five minutes; see the service worker note under *Still open*.
+
+`src/ui/export.js` and the account gate are the exception to step 1: they are
+governed by `docs/specs/`, not by a workbook. **Change the spec first**, then
+the implementation — that ordering is what makes the reimplementation
+defensible.
 
 ## 8. Contact
 
