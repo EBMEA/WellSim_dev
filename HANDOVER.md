@@ -155,7 +155,7 @@ Verified from outside, and re-verified at the 13 September capture:
   10 Dec 2026, full chain OK. Two self-signed certificates were generated in cPanel
   before the real one issued; both are gone.
 - The deployed `app.js` is **byte-identical** to this workstation's once line endings
-  are normalised — 220,001 bytes both, the raw 4,523-byte gap being exactly one byte
+  are normalised — 220,525 bytes both, the raw 4,522-byte gap being exactly one byte
   per line, CRLF here against LF on the Linux checkout.
 - **Containment holds:** all seven account endpoints refuse with
   `legacy_case_store_disabled`, and `/api/accounts/status` reports
