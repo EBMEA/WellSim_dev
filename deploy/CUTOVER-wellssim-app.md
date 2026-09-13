@@ -101,7 +101,7 @@ systemctl show wellsim -p NRestarts               # NRestarts=0
 curl -s http://127.0.0.1:3355/api/accounts/status # enabled:false,
                                                   # registrationEnabled:false,
                                                   # mode:legacy-web
-node scripts/module-smoke.mjs --base http://<new-ip>:3355   # 38/38
+node scripts/module-smoke.mjs --base http://<new-ip>:3355   # 59/59
 ```
 
 `enabled:false` must hold **two independent ways**: the code gate `27ea04e`

@@ -145,7 +145,7 @@ site's content, it is not moving, and it is not WellSim source.
 systemctl is-active wellsim                      # active
 systemctl show wellsim -p NRestarts              # NRestarts=0
 # containment, as above — enabled:false
-node scripts/module-smoke.mjs --base http://<new-ip>:3355   # 38/38
+node scripts/module-smoke.mjs --base http://<new-ip>:3355   # 59/59
 ```
 
 Then lower the Cloudflare TTL a day ahead, move the A records, watch

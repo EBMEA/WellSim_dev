@@ -6,6 +6,15 @@
 // This drives the live HTTP API the browser uses, so it exercises the server,
 // the route table and the handlers together.
 //
+// IT COVERS EVERY ROUTE IN THE TABLE, and that is asserted at the end rather
+// than trusted: the run fails if api.js gains a route nothing here calls.
+// Until 13 Sep 2026 it reached 19 of 24 — the five head/efficiency matches and
+// the WHOLE artificial-lift selection module were never smoked, so a release
+// could go out green with a dead button on it.
+//
+// The account routes are checked the other way round: a REFUSAL is the pass.
+// The web deployment must never open its legacy case store.
+//
 // Usage: node scripts/module-smoke.mjs [--base http://localhost:3355] [--json out.json]
 const argv = process.argv.slice(2);
 const arg = (k, d) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : d);
@@ -79,6 +88,44 @@ const WATER_PROD = {
   ...WATER_INJ, wellType: 'producer', thpPsi: '200', qOilStbD: '2000',
   testThpPsi: '200', priPsi: '4800', prPsi: '',
 };
+// The head matches need a TYPED measurement to match against — a grey marched
+// value is not one, and the handlers refuse without it. These carry the demo
+// well's own measured figures.
+const OIL_MATCH = { ...OIL, testPwfPsi: '2647' };
+const GAS_MATCH = {
+  ...GAS,
+  testPoints: [
+    { thpPsi: '2440', qMMscfd: '5.192', pwfPsi: '2900' },
+    ...GAS.testPoints.slice(1),
+  ],
+};
+const WATER_INJ_MATCH = { ...WATER_INJ, testPwfPsi: '5934' };
+// The water ESP block, with the measured intake/discharge couple the head and
+// wear matches read. NOTE testPwfPsi is deliberately BLANK: WATER_INJ carries
+// the injector's measured BHIP (5934 psi), which on a producer sits above the
+// 4800 psi reservoir, and no stage count can close a traverse to a Pwf above
+// Pres. Blank means the match anchors on the IPR instead, which is what the
+// tab does. This cost a false failure on 13 Sep 2026.
+const WATER_ESP = {
+  ...WATER_PROD, thpPsi: '200', qOilStbD: '4300', prPsi: '4800',
+  testQOilStbD: '4300', testThpPsi: '200', testPwfPsi: '',
+  liftType: 'esp', espPumpMode: 'db', espPumpName: 'ESP B 538-3600',
+  espStages: '145', espFreqHz: '50', pumpAhM: '2985', pumpTvdM: '2985',
+  espMeasPintPsi: '4000', espMeasPdisPsi: '4850', espMinIntakePsi: '300',
+};
+// The artificial-lift selection module: the UI's own three snapshots
+// (ALLIFT_DEFAULT in app.js), Initial / half-horizon / horizon.
+const ALLIFT = {
+  snapshots: [
+    { pwfPsi: 2000, prPsi: 5200, pbPsi: 2000, j: 0.7, depthM: 3200, whpPsi: 250, wcPct: 2, gorScfStb: 400, devDeg: 1, dogLegDeg: 7 },
+    { pwfPsi: 2000, prPsi: 3500, pbPsi: 2000, j: 0.7, depthM: 3200, whpPsi: 250, wcPct: 20, gorScfStb: 400, devDeg: 1, dogLegDeg: 7 },
+    { pwfPsi: 2000, prPsi: 2500, pbPsi: 2000, j: 0.7, depthM: 3200, whpPsi: 250, wcPct: 50, gorScfStb: 400, devDeg: 1, dogLegDeg: 7 },
+  ],
+  capexUsd: { esp: 400000, gaslift: 250000, srp: 300000, pcp: 200000, jet: 150000 },
+  opexUsdPerBbl: 2, udcLimitUsdPerBbl: 12, horizonYears: 1,
+  gates: { naturalFlow: false, nearGasCompression: false, sourGasHigh: false, excludeJetPump: false },
+};
+
 const ML_OIL = {
   ...OIL, mlMode: 'multi',
   mlLayers: [
@@ -128,7 +175,24 @@ const CHECKS = [
   ['Water · Injector', 'injectivity nodal', 'water/injector', WATER_INJ, (r) => r.op?.qBpd > 0 && `q ${r.op.qBpd.toFixed(0)} bbl/d, BHIP ${r.op.pwfPsi.toFixed(0)} psi`],
   ['Water · Injector', 'calibrate', 'water/injcalibrate', WATER_INJ, (r) => (r.jInj ?? r.matchedPermMd) && `J inj ${r.jInj?.toFixed(4) ?? '—'}`],
   ['Water · Injector', 'sensitivities', 'water/injsensitivity', WATER_INJ, (r) => (r.grid?.length ?? r.sets?.length ?? 0) >= 0 && 'grid returned'],
+  ['Oil · Well model', 'match head from a test point', 'oil/matchhead', OIL_MATCH, (r) => r.matchHead > 0 && `head ${r.matchHead.toFixed(4)}, target ${r.targetPsi} psi, marched ${r.marchedPsi?.toFixed(0)}`],
+  ['Oil · ESP', 'match head from measured Pint/Pdis', 'oil/matchhead', OIL_ESP, (r) => r.matchHead > 0 && `head ${r.matchHead.toFixed(4)}, Pdis target ${r.targetPsi} psi`],
+  ['Oil · ESP', 'match separator efficiency', 'oil/espsepeff', OIL_ESP, (r) => r.sepEffPct != null && `sep eff ${Number(r.sepEffPct).toFixed(1)} %`],
+  ['Gas · Well model', 'match head from a test point', 'gas/matchhead', GAS_MATCH, (r) => r.matchHead > 0 && `head ${r.matchHead.toFixed(4)}, target ${r.targetPsi} psi`],
+  ['Water · Injector', 'match head from measured BHIP', 'water/injmatchhead', WATER_INJ_MATCH, (r) => r.matchHead > 0 && `head ${r.matchHead.toFixed(4)}, BHIP target ${r.targetPsi} psi`],
+  ['Water · ESP', 'coupled solve at the ESP test rate', 'oil/esp', WATER_ESP, (r) => r.op?.qOilStbD > 0 && `q ${r.op.qOilStbD.toFixed(0)} bbl/d, dP ${r.point.dpPsi.toFixed(0)} psi`],
+  ['Water · ESP', 'match head from measured Pint/Pdis', 'oil/matchhead', WATER_ESP, (r) => r.matchHead > 0 && `head ${r.matchHead.toFixed(4)}, Pdis target ${r.targetPsi} psi`],
+  ['Water · ESP', 'match stages', 'oil/espstages', WATER_ESP, (r) => (r.stages ?? r.matchedStages) > 0 && `${r.stages ?? r.matchedStages} stages`],
+  ['Water · ESP', 'match wear', 'oil/espwear', WATER_ESP, (r) => r.wearFactor != null && `wear ${(r.wearFactor * 100).toFixed(1)} %, dP ${r.dpMeasPsi?.toFixed(0)} vs ${r.dpTheoPsi?.toFixed(0)} psi theoretical`],
+  ['Artificial lift · Selection', 'envelope screen + economics', 'allift/select', ALLIFT, (r) => Array.isArray(r.applicable) && `${r.applicable.length} applicable, pick: ${r.recommendation ?? 'none'}`],
+  ['Artificial lift · Selection', 'the limits matrix is versioned', 'allift/select', ALLIFT, (r) => r.limits?.version && `limits v${r.limits.version}, ${Object.keys(r.limits.bands).length} methods screened`],
+  ['Artificial lift · Selection', 'a well-condition gate excludes', 'allift/select', { ...ALLIFT, gates: { ...ALLIFT.gates, excludeJetPump: true } }, (r) => Array.isArray(r.gateExclusions?.JET) && `JET excluded, ${r.applicable.length} left`],
 ];
+
+// The account store must stay shut on the web deployment. A REFUSAL is the
+// pass here; accounts/status is ungated on purpose, because a caller must
+// always be able to learn that the store is off.
+const GATED = ['auth/register', 'auth/login', 'auth/logout', 'cases/save', 'cases/list', 'cases/load', 'cases/delete'];
 
 const ASSETS = ['/', '/app.js', '/export.js', '/style.css', '/help.html', '/favicon.svg', '/vendor/plotly.min.js'];
 
@@ -168,6 +232,50 @@ for (const [g, name, route, body, check] of CHECKS) {
   }
   results.push({ group: g, name, route, pass, detail });
   console.log(`    ${pass ? 'ok  ' : 'FAIL'} ${name.padEnd(30)} ${detail}`);
+}
+
+console.log('\n  account containment — a refusal is the PASS');
+for (const route of GATED) {
+  let pass = false, detail = '';
+  try {
+    const { json } = await post(route, {});
+    pass = json.code === 'legacy_case_store_disabled';
+    detail = pass ? 'refused: legacy_case_store_disabled' : `NOT REFUSED — ${JSON.stringify(json).slice(0, 58)}`;
+  } catch (e) { detail = `threw: ${e.message.slice(0, 60)}`; }
+  results.push({ group: 'Account containment', name: route, route, pass, detail });
+  console.log(`    ${pass ? 'ok  ' : 'FAIL'} ${route.padEnd(30)} ${detail}`);
+}
+try {
+  const { json } = await post('accounts/status', {});
+  const pass = json.enabled === false && json.registrationEnabled === false;
+  results.push({ group: 'Account containment', name: 'accounts/status', route: 'accounts/status', pass, detail: JSON.stringify(json) });
+  console.log(`    ${pass ? 'ok  ' : 'FAIL'} ${'accounts/status'.padEnd(30)} ${JSON.stringify(json)}`);
+} catch (e) {
+  results.push({ group: 'Account containment', name: 'accounts/status', route: 'accounts/status', pass: false, detail: e.message });
+  console.log(`    FAIL accounts/status — ${e.message}`);
+}
+
+// COVERAGE. The point of this script is "every module and submodule", and a
+// route nobody calls is exactly the gap that let five of them go unsmoked
+// until 13 Sep 2026. Read the route table off the source and fail on any
+// route this run never touched, so the gap cannot reopen silently.
+try {
+  const fsp = await import('node:fs');
+  const pathp = await import('node:path');
+  const src = fsp.readFileSync(
+    pathp.join(import.meta.dirname, '..', 'src', 'server', 'api.js'), 'utf8'
+  );
+  const table = [...src.matchAll(/^ {2}'([a-z]+\/[a-zA-Z]+)':/gm)].map((m) => m[1]);
+  const called = new Set(results.map((r) => r.route));
+  const missed = table.filter((r) => !called.has(r));
+  const pass = table.length > 0 && missed.length === 0;
+  results.push({
+    group: 'Coverage', name: 'every route in api.js is smoked', route: 'coverage', pass,
+    detail: pass ? `all ${table.length} routes called` : `NEVER CALLED: ${missed.join(', ')}`,
+  });
+  console.log(`\n  coverage\n    ${pass ? 'ok  ' : 'FAIL'} ${'every route in api.js is smoked'.padEnd(30)} ${pass ? `all ${table.length} routes called` : `NEVER CALLED: ${missed.join(', ')}`}`);
+} catch (e) {
+  console.log(`    (coverage check skipped: ${e.message.slice(0, 60)})`);
 }
 
 const failed = results.filter((r) => !r.pass);

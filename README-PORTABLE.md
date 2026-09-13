@@ -1,9 +1,12 @@
 # WellSim — standalone portable program
 
 **Build 2.7 — 9 September 2026**, from commit `8423d73` of the main project.
-Identical physics to what wellsim.app served before it was retired; the source
-is guarded by 344 tests and the 43/43 validation sweep, and this build itself
-passed the **38/38 module smoke suite** with the exe as the only listener.
+Identical physics to what **https://wellssim.app** serves today (note the
+double s; the old single-s name was retired on 8 September 2026). The source is
+guarded by 344 tests and the 43/43 validation sweep, and this build itself
+passed the **59/59 module smoke suite** with the exe as the only listener —
+every route in the API, both fluids, both lift types, the injector, the
+forecast, the artificial-lift screen and the account containment.
 
 > **2.5, 2.6 AND 2.7 ARE THE SAME PROGRAM.** Nothing in `src/`, `portable/`,
 > `build.ps1` or the SEA config has changed since commit `9025968` — the
