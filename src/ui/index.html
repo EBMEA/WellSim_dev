@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="WellSim" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
   <!-- the ?v= stamp busts the browser cache — bump it on every UI deploy -->
-  <link rel="stylesheet" href="/style.css?v=2026-09-12h" />
+  <link rel="stylesheet" href="/style.css?v=2026-09-13f" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body class="view-inputs">
@@ -294,6 +294,10 @@
             <div id="water-esp-manual" style="display:none"><div id="water-esp-manual-fields"></div></div>
             <div id="water-esp-matchrow" style="display:none">
               <button id="water-btn-espstages" class="action secondary">Match stages (new pump, wear 0)</button>
+              <!-- The oil tab's third button, "Match separator efficiency", has no
+                   counterpart here on purpose: water carries no free gas, so there
+                   is nothing to separate and the solver has no unknown to fix. -->
+              <button id="water-btn-espwear" class="action secondary">Match wear (actual Pint/Pdis)</button>
             </div>
             <div class="note">Water is gas-free, so there is no free-gas intake block and no separator: the pump curve works on the water volume at the intake. With a pump selected the &Delta;P is SOLVED from the curve (stages &times; affinity &times; wear); on Manual &Delta;P you type it and a frequency sensitivity scales it by (f/f&#8320;)&sup2;.</div>
             <div id="water-esp-result" class="note"></div>
@@ -448,7 +452,7 @@
     <button id="mb-results" type="button">Results</button>
   </nav>
   <div id="error-bar" style="display:none"></div>
-  <script src="/export.js?v=2026-09-12h"></script>
-  <script src="/app.js?v=2026-09-12h"></script>
+  <script src="/export.js?v=2026-09-13f"></script>
+  <script src="/app.js?v=2026-09-13f"></script>
 </body>
 </html>

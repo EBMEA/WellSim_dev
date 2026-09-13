@@ -245,6 +245,18 @@ const WATER_ESP_FIELDS = [
   ['espFreqHz', 'Operating frequency', 'Hz', 50],
   ['espStages', 'No. of stages', '-', 145],
   ['espWearFactor', 'Wear factor', 'frac', 0],
+  // The two gauge readings the ESP head match works from. The server has read
+  // espMeasPintPsi / espMeasPdisPsi all along (api.js oilMatchHead) and refuses
+  // an ESP match without them — the water tab simply never offered the fields,
+  // so the button could not succeed here. Unlike the oil tab these carry
+  // defaults rather than being blank, because on a water well they are the
+  // match's starting point rather than an optional extra.
+  ['espMeasPintPsi', 'Measured Pint', 'psi', 4000],
+  ['espMeasPdisPsi', 'Measured Pdis', 'psi', 4850],
+  // The stage match caps itself at this floor and already reports it ("intake
+  // 4598 psi ≥ 300 psi floor"), but until now the water tab gave no way to
+  // change it — the server's 300 psi default was doing the work invisibly.
+  ['espMinIntakePsi', 'Design min intake P', 'psi', 300],
 ];
 const WATER_ESP_MANUAL_FIELDS = [['pumpDpPsi', 'Pump ΔP (manual)', 'psi', 1325.16]];
 const ESP_CURVE_COLS = [
@@ -1682,8 +1694,13 @@ async function loadEspPumps() {
       c.appendChild(o);
     }
     c.onchange = () => {
-      fillPumpSel(c.id.split('-')[0]);
-      switchEspPump();
+      // This handler is installed on BOTH catalogue selects, so it must refresh
+      // the tab it belongs to. It called the oil switch unconditionally, which
+      // is why choosing a water catalogue never revealed the water match row.
+      const prefix = c.id.split('-')[0];
+      fillPumpSel(prefix);
+      if (prefix === 'water') switchWaterEspPump();
+      else switchEspPump();
     };
   }
   for (const p of ['oil', 'water']) fillPumpSel(p);
@@ -1693,6 +1710,10 @@ async function loadEspPumps() {
     setPumpSelection('water', 'ESP B 538-3600');
   }
   switchEspPump();
+  // Water needs the same settling. Without it the water ESP match row keeps the
+  // display:none it is authored with until the user happens to change the pump
+  // dropdown — which is why its buttons appeared to be missing entirely.
+  switchWaterEspPump();
 }
 
 // ---- Water Well tab: the oil marches at their limiting case (API 10,
@@ -1714,11 +1735,36 @@ function refreshWaterGasSgRow() {
   row.style.display = gasLifted ? '' : 'none';
 }
 
+// Per-lift test rate: an unlifted water well solves near 1836 bbl/d and an ESP
+// well near 4329, so one test default cannot suit both — a 2000 bbl/d test rate
+// against an ESP well reads as a badly underperforming pump rather than a
+// sensible starting point.
+//
+// Same discipline as the producer/injector THP swap below: the value is only
+// exchanged while the field still holds the OTHER lift's default, so anything
+// the analyst has typed is never overwritten. That is why this compares against
+// both constants instead of just assigning.
+const WATER_TEST_RATE_ESP = '4300';
+const WATER_TEST_RATE_PLAIN = '2000';
+
+function refreshWaterTestRateDefault() {
+  const el = document.getElementById('water-testQOilStbD');
+  if (!el) return;
+  // An injector has no pump, and its lift radio keeps whatever it last held —
+  // so asking the lift type alone would leave an injector carrying the ESP
+  // test rate. Gate on the well type first, exactly as the lift-gas row does.
+  const esp = waterWellType() !== 'injector' && waterLiftType() === 'esp';
+  const v = el.value.trim();
+  if (esp && v === WATER_TEST_RATE_PLAIN) el.value = WATER_TEST_RATE_ESP;
+  if (!esp && v === WATER_TEST_RATE_ESP) el.value = WATER_TEST_RATE_PLAIN;
+}
+
 function switchWaterLift() {
   const t = waterLiftType();
   document.getElementById('water-lift-gl').style.display = t === 'gaslift' ? '' : 'none';
   document.getElementById('water-lift-esp').style.display = t === 'esp' ? '' : 'none';
   refreshWaterGasSgRow();
+  refreshWaterTestRateDefault();
   // the ESP chart rows belong to the ESP lift only — stale ones would
   // otherwise linger after switching back to natural flow
   if (t !== 'esp')
@@ -1826,11 +1872,24 @@ function switchWaterType() {
   // switchWaterLift is skipped for an injector, so the lift-gas row has to be
   // settled here too or it would survive the switch from a gas-lifted producer.
   refreshWaterGasSgRow();
+  // Same reason: an ESP producer switched to injector would otherwise strand
+  // the ESP test rate on a well that has no pump.
+  refreshWaterTestRateDefault();
   const row = document.getElementById('water-injTempF')?.closest('.frow');
   if (row) row.style.display = inj ? '' : 'none';
+  // Replace ONLY the label's own text, never its children. The unit lives in a
+  // <span class="unit"> inside the label, so assigning textContent deletes it —
+  // which is why the water FTHP showed no "psi" once a well-type switch had
+  // run, and never got it back. The title is rebuilt to match, since it is the
+  // hover text and would otherwise still read the old name.
   const relabel = (id, txt) => {
     const l = document.getElementById(id)?.closest('.frow')?.querySelector('label');
-    if (l) l.textContent = txt;
+    if (!l) return;
+    const first = l.firstChild;
+    if (first && first.nodeType === Node.TEXT_NODE) first.nodeValue = txt;
+    else l.insertBefore(document.createTextNode(txt), l.firstChild);
+    const unit = l.querySelector('.unit')?.textContent ?? '';
+    l.title = unit ? `${txt} (${unit})` : txt;
   };
   relabel('water-thpPsi', inj ? 'Injection THP' : 'FTHP');
   // per-type THP default: producer 200 psi, injector 2000 psi — swap only
@@ -2525,6 +2584,25 @@ async function waterEspStagesRun() {
         `intake ${fmt(r.intakePsi, 0)} psi ≥ ${fmt(r.minIntakePsi, 0)} psi floor. Applied to the stages input.`);
   document.getElementById('water-espStages').value = String(r.stages);
   if (r.pwfSource === 'ipr') setComputed('water-testPwfPsi', r.pwfIprPsi, 1); // macro-written cell, user-overwritable
+}
+
+/** Wear match, water: holds the stage count and explains the measured ΔP as
+ *  pump wear instead. The oil tab's wording says "separator η held"; there is
+ *  no separator here, because water carries no free gas — the same reason the
+ *  separator-efficiency match has no water counterpart.
+ *
+ *  The implied PI and permeability are reported and NOT applied, exactly as on
+ *  the oil tab: one measured ΔP fixes one unknown, and that unknown is wear.
+ *  Writing a K back from it would launder a QC number into an input. */
+async function waterEspWearRun() {
+  const r = await api('oil/espwear', waterForm());
+  const el = document.getElementById('water-esp-result');
+  if (r.error) { el.textContent = r.error; return; }
+  el.textContent =
+    `Wear match from actual Pint/Pdis (stages held at ${val('water-espStages')}):\n` +
+    `ΔP actual = ${fmt(r.dpMeasPsi, 1)} psi vs theoretical ${fmt(r.dpTheoPsi, 1)} → wear = ${fmt(r.wearFactor, 4)} (applied to the wear input).\n` +
+    `QC only — implied PI at constant Pres ${fmt(r.prPsi, 0)} psi = ${fmt(r.jMatched, 4)} bbl/d/psi (K ${fmt(r.matchedPermMd, 2)} mD); NOT applied.`;
+  document.getElementById('water-espWearFactor').value = r.wearFactor.toFixed(4);
 }
 
 async function espWearRun() {
@@ -3510,6 +3588,7 @@ function applyCase(c) {
     if (saved) setPumpSelection(p, saved);
   }
   switchEspPump();
+  switchWaterEspPump(); // a restored case must settle BOTH tabs, not just oil
   switchEspTab();
   switchWaterType();
   switchWaterLift();
@@ -3989,6 +4068,7 @@ document.querySelectorAll('input[name="water-iprbasis"]').forEach((r) => (r.onch
 switchOilIprBasis(); // initial view: hide the PI row on the darcy default
 switchWaterIprBasis();
 document.getElementById('water-btn-espstages').onclick = guard(waterEspStagesRun);
+document.getElementById('water-btn-espwear').onclick = guard(waterEspWearRun);
 refreshWaterSens();
 renderPresList('water-pres-list', 'water', [3600, 2400, 1200]); // 0.75/0.5/0.25 x Pri 4800
 document.querySelectorAll('input[name="water-lift"]').forEach((r) => (r.onchange = switchWaterLift));
