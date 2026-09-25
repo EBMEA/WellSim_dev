@@ -6,21 +6,26 @@ shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `f9881
 **Manual:** `src/ui/help.html` (served at /help.html) ·
 **Codex comparison:** https://bldrz.net
 
-**Where it stands, 25 September 2026.** `main` is `3b173d0` plus the 25 September
-change described first below, working tree clean at the time of writing, **348/348
-tests passing** and the sweep **43/43 PASS**.
+**Where it stands, 25 September 2026.** `main` is at `f28fc23` (219 commits), working
+tree clean, **348/348 tests passing** and the sweep **43/43 PASS**. The live site and the
+portable both carry that commit's application:
 
 | | commit | note |
 | --- | --- | --- |
-| `wellsim-dev/main` (GitHub) | `3b173d0` + 25 Sep | default branch, **public** |
-| https://wellssim.app | `f98817e` | **BEHIND — the 25 Sep change touches app.js, style.css and index.html, so this one needs a deploy** |
-| `D:\WellSim-Handover-2026-09-18` (D: and F:) | `3b173d0` | 165/165 verified on both, bundle cloned back from each |
-| `D:\WellSim_2.9` (D: and F:, portable exe) | `c7fb645` | behind main; physics identical, UI predates the gas Model column |
+| `wellsim-dev/main` (GitHub) | `f28fc23` | default branch, **public** |
+| https://wellssim.app | `f28fc23` | every served file byte-identical to the commit; 59/59 on the live URL; the Model column seen in a real browser |
+| `D:\WellSim_3.0` (D: only, portable exe) | `f28fc23` | built from the same tree before it was committed — the patch beside the exe hashes to `git diff 3b173d0 f28fc23`; **not on F:** |
+| `D:\WellSim-Handover-2026-09-18` (D: and F:) | `3b173d0` | one commit behind; 165/165 verified on both |
+| `D:\WellSim_2.9` (D: and F:) | `c7fb645` | superseded by 3.0 |
 
-**The live site was correctly left on `f98817e` through 13–18 September** — every commit
-in between was documentation and test tooling, nothing the server serves. That stops
-being true with the 25 September change: it is the first since `f98817e` to alter a
-served file, and the deploy needs the repository public at that moment (see *Deploying*).
+**The deploy of `f28fc23` failed twice before it worked, and the reason will recur if it
+is forgotten.** The server's checkout had been a **detached HEAD** since the 12 September
+deploy pinned a fixed commit. A detached HEAD has no branch to fast-forward, so
+`git pull --ff-only` cannot, and cPanel's *Update from Remote* fails as an opaque
+`0 - Unknown Error`. It went unnoticed for two weeks only because every commit between
+`f98817e` and `3b173d0` was documentation and test tooling that never needed deploying.
+The repair — `git checkout -B main origin/main` — is recorded under *Deploying* and in
+the shared-hosting runbook; both deploy routes work normally now.
 
 **Three deliverables, not one.** The website, the portable exe, and a local run
 (`npm start`, http://localhost:3355) are the same app. The portable needs no domain
@@ -427,6 +432,28 @@ username because **GitHub answers 404 rather than 403** to anonymous callers on
 a private repo, so it cannot tell "no access" from "no such repo". Making it
 public again fixed it immediately. If it must stay private, the server needs its
 own deploy key, or the release has to go up through File Manager.
+
+**THE SERVER MUST BE ON A BRANCH.** `0 - Unknown Error` from *Update from Remote*,
+or `git pull` refusing with "not currently on a branch", means the checkout is a
+**detached HEAD** — which is what a deploy pinned to a fixed commit leaves behind.
+That is how the 25 September deploy failed twice. Diagnose from the cPanel
+Terminal with `git status -sb`: `## HEAD (no branch)` is the tell. Repair, once:
+
+    cd ~/wellsim && git fetch origin && git checkout -B main origin/main
+
+then `touch tmp/restart.txt` as usual. The server's tree carries no edits of its
+own (only untracked `node_modules` and `tmp/`), so the reset loses nothing.
+Never `reset --hard` there on a guess — if `--ff-only` refuses on a branch, the
+tree has drifted and the drift should be read first.
+
+**A deploy is proven from outside, never from the button.** `server.js` reads
+every static file from disk per request, so a pull that landed shows immediately
+and one that did not shows the old bytes even to a never-seen stamped URL. The
+check that settles it:
+
+    curl -s https://wellssim.app/ | grep -oE 'app\.js\?v=[0-9a-z-]+'
+
+must print the stamp in the commit's `index.html`.
 
 The runbook is **[deploy/SHARED-HOSTING-wellssim.md](deploy/SHARED-HOSTING-wellssim.md)**.
 The VPS path back is **[deploy/README-server-rebuild.md](deploy/README-server-rebuild.md)**

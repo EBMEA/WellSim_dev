@@ -108,28 +108,62 @@ Clone URL:  https://github.com/EBMEA/WellSim_dev.git
 Repository Path: /home/<user>/wellsim
 ```
 
-Then **pin it**, rather than tracking `main`, so you know what is running:
+**Stay on `main`. Do not pin the checkout to a commit.** An earlier revision of
+this runbook said "pin it, rather than tracking `main`, so you know what is
+running", with `git checkout <sha>` — and that is a **detached HEAD**: there is
+no branch to fast-forward, so `git pull --ff-only` cannot, and cPanel's
+*Update from Remote* fails as an opaque `0 - Unknown Error`. The 25 September
+2026 deploy failed twice that way. You know what is running by reading it, not
+by pinning it:
 
 ```bash
-cd ~/wellsim && git checkout 30427f9
+cd ~/wellsim && git status -sb && git log --oneline -1
+```
+
+`## main...origin/main` is the healthy state. `## HEAD (no branch)` is the tell
+for a detached checkout; repair it once with
+
+```bash
+cd ~/wellsim && git fetch origin && git checkout -B main origin/main
+```
+
+which loses nothing — the server's tree carries no edits of its own, only the
+untracked `node_modules` and `tmp/`.
+
+**Every later deploy is then two lines**, from the cPanel Terminal or via the
+*Update from Remote* + *Deploy HEAD Commit* buttons, which do the same thing:
+
+```bash
+cd ~/wellsim && git fetch --all --prune && git pull --ff-only
+cd ~/wellsim && mkdir -p tmp data && touch tmp/restart.txt
+```
+
+`--ff-only` on purpose: if it refuses on a branch, the tree has drifted, and the
+drift should be read before anything is reset. Then prove the deploy from
+outside — `server.js` reads every static file from disk per request, so the
+new stamp shows immediately if the pull landed and the old one shows even to a
+never-seen URL if it did not:
+
+```bash
+curl -s https://wellssim.app/ | grep -oE 'app\.js\?v=[0-9a-z-]+'
 ```
 
 If Git Version Control is not enabled on the plan, upload a zip of the same
 commit through File Manager instead. Do **not** upload the working tree from
 this workstation — it carries `node_modules`, `data/` and `ALdocs/`.
 
-### Install dependencies
+### Install dependencies — there are none
 
-Use the **Run NPM Install** button in the Node.js App screen, or from the
-app's virtualenv:
+**Nothing to install.** Since the PostgreSQL boundary was removed on
+12 September 2026, `package.json` declares no `dependencies` at all: the
+server is Node built-ins only. `esbuild` and `postject` are devDependencies of
+the portable build alone and have no business on the host. Skip **Run NPM
+Install**; `.cpanel.yml` deliberately has no install step.
 
-```bash
-source /home/<user>/nodevenv/wellsim/<ver>/bin/activate
-cd ~/wellsim && npm install --omit=dev
-```
-
-`pg` is **not optional** even though no database is involved: since `713ce46`
-the server imports it unconditionally and crash-loops without it.
+An earlier revision of this runbook said `pg` was "not optional" because the
+server imported it unconditionally. That was true from `713ce46` until the
+removal, and is not true now. A `node_modules` folder left on the server from
+that era is harmless and untracked.
 
 ## Client data — read this before uploading `data/`
 
