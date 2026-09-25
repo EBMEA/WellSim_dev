@@ -6,25 +6,75 @@ shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `f9881
 **Manual:** `src/ui/help.html` (served at /help.html) ·
 **Codex comparison:** https://bldrz.net
 
-**Where it stands, 13 September 2026.** `main` is at `f98817e`, 213 commits, working
-tree clean, **344/344 tests passing** and the sweep **43/43 PASS**. The repository, the
-live site and this workstation all describe the same product:
+**Where it stands, 25 September 2026.** `main` is `3b173d0` plus the 25 September
+change described first below, working tree clean at the time of writing, **348/348
+tests passing** and the sweep **43/43 PASS**.
 
 | | commit | note |
 | --- | --- | --- |
-| `wellsim-dev/main` (GitHub) | `f98817e` | default branch, **public** |
-| https://wellssim.app | `f98817e` | verified from outside, not from the console |
-| `D:\WellSim-FullBackup-2026-09-13` | `f98817e` | bundle cloned back, tree matches |
-| `D:\WellSim_2.8` (portable exe) | `768d4d1` | **one commit behind, on purpose** |
+| `wellsim-dev/main` (GitHub) | `3b173d0` + 25 Sep | default branch, **public** |
+| https://wellssim.app | `f98817e` | **BEHIND — the 25 Sep change touches app.js, style.css and index.html, so this one needs a deploy** |
+| `D:\WellSim-Handover-2026-09-18` (D: and F:) | `3b173d0` | 165/165 verified on both, bundle cloned back from each |
+| `D:\WellSim_2.9` (D: and F:, portable exe) | `c7fb645` | behind main; physics identical, UI predates the gas Model column |
 
-The portable is the only thing not at `f98817e`: build 2.8 predates the water-well UI
-work by one commit. Its physics is identical; only its embedded UI is older.
+**The live site was correctly left on `f98817e` through 13–18 September** — every commit
+in between was documentation and test tooling, nothing the server serves. That stops
+being true with the 25 September change: it is the first since `f98817e` to alter a
+served file, and the deploy needs the repository public at that moment (see *Deploying*).
 
 **Three deliverables, not one.** The website, the portable exe, and a local run
 (`npm start`, http://localhost:3355) are the same app. The portable needs no domain
 and no account, and is what goes to a client on a USB stick.
 
 ---
+
+## 25 September — the gas Model column, and the prod table on a phone
+
+**The gas reserve prod_data table gained a per-row `Model` select — Model / User** —
+mirroring the oil table's User row. The gas workbook backs every row's Pr out of the
+IPR and has no typed-Pr convention, so this is recorded in the manual's *Workbook
+deviations*. Four decisions, all the owner's:
+
+- **On a Model row a typed Pwf still overrides the march**, as it always has (the
+  workbook's own "Pwf accepts a gauge value"). Pr is backed out, and a Pr left in the
+  cell is **replaced** — a stale number from an earlier run cannot leak into the fit.
+- **User = Pwf and Pr both typed**, no march, no IPR; missing either stops with the
+  row named. `formVal` reads a grey computed cell as blank, so a row switched to User
+  over a computed Pr gets that error rather than silently adopting the model's number.
+- **No fill-down**, unlike oil: the usual case is one build-up gauge on one date.
+- **No Pr ≤ Pwf check** — accepted silently, as oil does.
+
+Blank model = Model, so every saved case and the validation sweep solve as before. The
+same solver feeds the p/Z fit, "Current Pres" (the workbook's MIN of the Pr column),
+the reservoir limit and the forecast seed; SITHP and gauge routes read the table for
+Gp only and ignore the column. Verified in the browser: grey Pr on Model rows, a User
+row holding its values with no fill-down (GIIP 187.76 → 170.97 Bscf on the demo), the
+named error on a cleared Pr, and the column surviving a reload through the same
+serialisation Save/Open uses. Four new tests; the suite is 348.
+
+**Then the table's view was fixed on both desktop and phone.** Three defects, only one
+of them new:
+
+- **The gas table never had the `.gridscroll` box** the oil table got when it grew to
+  twelve columns. On a phone the *card* scrolled sideways instead, dragging the caption
+  and buttons along.
+- **The card was a scroll container.** `fieldset, .group { overflow-x: auto }` in the
+  mobile block forces `overflow-y: auto` too, so the sticky *Run* button pinned to the
+  card's bottom edge and floated over the rows. It is `overflow-x: clip` now — not a
+  scroll container — and **every** `.sens` grid table (13) sits in its own
+  `.gridscroll`, since the card can no longer catch overflow for them. Swept every
+  module on all three tabs at 375 px afterwards: nothing clipped, no sideways overflow.
+- **The 24-character date header at `nowrap` dictated the column** — 137 px on a
+  phone, three wrapped lines on desktop. It is now `Date` with the format as a small
+  hint beneath: 100 px, single-row headers. Labels are render-only, so nothing else
+  reads them.
+
+**The service-worker trap bit again, on this very change.** The first re-check after
+the CSS edit still showed the old rules: the stamp had moved once for the Model column
+and not again for the view fix, so the worker served its cache and `index.html` — being
+network-first — was the only file that looked fresh. The purge recipe under *Still open*
+fixed it. Same lesson: within one stamp, edits to `app.js` / `style.css` do not reach an
+already-loaded browser.
 
 ## 13 September — the water well tab
 
@@ -350,7 +400,7 @@ portable exe**. `esbuild` and `postject` are devDependencies of the portable
 build alone, so nothing the server needs is fetched at install time.
 
 ```bash
-npm test                          # 344 unit, regression and security tests
+npm test                          # 348 unit, regression and security tests
 node scripts/validation-sweep.mjs # 43 physics checks against analytic answers
 ```
 

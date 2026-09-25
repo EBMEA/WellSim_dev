@@ -38,7 +38,7 @@ pulls nothing but the build tooling.
 npm test
 ```
 
-344 tests: PVT pins against workbook cells (15-digit), wellbore-march station parity
+348 tests: PVT pins against workbook cells (15-digit), wellbore-march station parity
 (gas march bit-exact; oil march within documented drift bands), IPR/nodal/calibration
 round trips, ESP stack, reserve and forecast synthetic-tank recoveries, the export
 contract (including formula-injection defence), and the account gate that keeps

@@ -101,6 +101,50 @@ test('Pres solver marches when Pwf is not given (get_Pwf per row)', () => {
   }
 });
 
+// prod_data Model column (WellSim extension, 25 Sep 2026). The workbook backs
+// every row's Pr out of the IPR; a User row carries a measured Pr instead.
+test('Model column: a User row takes its typed Pwf AND Pr; every other row is the workbook path', () => {
+  const rows = [
+    { date: 0, qMMscfd: 14.137, thpPsi: 1625 },
+    { date: 60, qMMscfd: 12, thpPsi: 1500, model: 'user', pwfPsi: 2900, presPsi: 3600 },
+    { date: 120, qMMscfd: 11, thpPsi: 1500, model: 'model' },
+  ];
+  const solved = gasPresSolver(GASCFG, IPR, rows);
+  // the User row: both values are the typed ones, byte for byte, and no IPR ran
+  assert.equal(solved[1].pwfSource, 'input');
+  assert.equal(solved[1].presSource, 'input');
+  assert.equal(solved[1].pwfPsi, 2900);
+  assert.equal(solved[1].presPsi, 3600);
+  assert.equal(solved[1].model, 'user');
+  // its z and p/Z follow the typed Pr, and Gp integration is untouched
+  close(solved[1].z, zAtRes(GASCFG, 3600), 1e-12);
+  close(solved[1].pOverZ, 3600 / solved[1].z, 1e-12);
+  // a blank model and an explicit 'model' are the same thing
+  for (const s of [solved[0], solved[2]]) {
+    assert.equal(s.pwfSource, 'calculated');
+    assert.equal(s.presSource, 'calculated');
+    assert.ok(s.presPsi > s.pwfPsi);
+  }
+  assert.equal(solved[0].model, null);
+  assert.equal(solved[2].model, 'model');
+  // the workbook path is unchanged by the column's existence: the same rows
+  // with the model stripped solve to the same numbers
+  const plain = gasPresSolver(GASCFG, IPR, rows.map(({ model, presPsi, ...r }) => r));
+  close(plain[0].presPsi, solved[0].presPsi, 1e-12);
+  close(plain[2].presPsi, solved[2].presPsi, 1e-12);
+});
+
+test('Model column: a User row without both values falls through to the workbook path in the core', () => {
+  // the API refuses this before the solver runs; the core itself must never
+  // produce a half-typed row — Pr typed alone is not a User row
+  const solved = gasPresSolver(GASCFG, IPR, [
+    { date: 0, qMMscfd: 14.137, thpPsi: 1625, model: 'user', presPsi: 3600 },
+    { date: 60, qMMscfd: 12, thpPsi: 1500 },
+  ]);
+  assert.equal(solved[0].presSource, 'calculated');
+  assert.notEqual(solved[0].presPsi, 3600);
+});
+
 test('SITHP static column lands near the workbook value (pasted 7661.9)', () => {
   // gas reserve workbook well: 5041 mTVD, gg=0.71, CO2 8%, N2 1.8%,
   // H2S 18 ppm, Tres 315 F, SITHT 120 F, SITHP 5545 -> Pres 7661.93 (pasted)

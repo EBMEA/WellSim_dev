@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="WellSim" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
   <!-- the ?v= stamp busts the browser cache — bump it on every UI deploy -->
-  <link rel="stylesheet" href="/style.css?v=2026-09-13f" />
+  <link rel="stylesheet" href="/style.css?v=2026-09-25a" />
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 </head>
 <body class="view-inputs">
@@ -94,7 +94,7 @@
           <label class="radio"><input type="radio" name="oil-mlmode" value="multi" /> Multi-layer (optional)</label>
           <div id="oil-ml" style="display:none">
             <div class="senshead">Per-layer Darcy — Re/Rw &amp; Pb shared from the well inputs; WC/GOR blank = base</div>
-            <table class="sens" id="oil-ml-table"></table>
+            <div class="gridscroll"><table class="sens" id="oil-ml-table"></table></div>
             <div class="note">Layers collapse to one final J at the theoretical average pressure (training deck 4); a layer with Pr below the operating Pwf is flagged as crossflow.</div>
           </div>
         </fieldset>
@@ -123,7 +123,7 @@
             <div id="oil-esp-custom" style="display:none">
               <div class="senshead">Custom pump — per-stage curve at the reference frequency (add new pump)</div>
               <div id="oil-esp-custom-fields"></div>
-              <table class="sens" id="oil-espcurve-table"></table>
+              <div class="gridscroll"><table class="sens" id="oil-espcurve-table"></table></div>
             </div>
             <div id="oil-esp-manual" style="display:none"><div id="oil-esp-manual-fields"></div></div>
             <div id="oil-esp-matchrow" style="display:none">
@@ -152,7 +152,7 @@
         <fieldset>
           <legend>Sensitivities</legend>
           <div class="senshead">VLP parameter sets (blank = base value)</div>
-          <table class="sens" id="oil-sens-table"></table>
+          <div class="gridscroll"><table class="sens" id="oil-sens-table"></table></div>
           <div class="senshead">Future reservoir pressures, psi</div>
           <div id="oil-pres-list" class="presrow"></div>
           <button id="oil-btn-sens" class="action secondary">Run sensitivities</button>
@@ -187,7 +187,7 @@
                 <button id="oil-static-clear" class="copybtn" type="button">Clear</button>
                 <span class="note" style="margin:0">or click a cell and Ctrl+V (Date, Pres)</span>
               </div>
-              <table class="sens" id="oil-static-table"></table>
+              <div class="gridscroll"><table class="sens" id="oil-static-table"></table></div>
             </div>
             <div id="oil-rsv-rlt" style="display:none">
               <div class="senshead">Reservoir limit (workbook sheet): m = &minus;slope(Pwf, t) over all rows, Ct = Cg&middot;Sg + Co&middot;So + Cw&middot;Sw + Cf, STOIP = q&#772;/(Ct&middot;m)</div>
@@ -289,7 +289,7 @@
             <div id="water-esp-custom" style="display:none">
               <div class="senshead">Custom pump &mdash; per-stage curve at the reference frequency (add new pump)</div>
               <div id="water-esp-custom-fields"></div>
-              <table class="sens" id="water-espcurve-table"></table>
+              <div class="gridscroll"><table class="sens" id="water-espcurve-table"></table></div>
             </div>
             <div id="water-esp-manual" style="display:none"><div id="water-esp-manual-fields"></div></div>
             <div id="water-esp-matchrow" style="display:none">
@@ -312,7 +312,7 @@
         <fieldset id="water-sens-fieldset">
           <legend>Sensitivities</legend>
           <div class="senshead" id="water-sens-head">VLP parameter sets (blank = base value)</div>
-          <table class="sens" id="water-sens-table"></table>
+          <div class="gridscroll"><table class="sens" id="water-sens-table"></table></div>
           <div class="senshead" id="water-pres-head">Future reservoir pressures, psi (J constant &mdash; water &mu;&middot;B do not change)</div>
           <div id="water-pres-list" class="presrow"></div>
           <button id="water-btn-sens" class="action secondary">Run sensitivities</button>
@@ -354,21 +354,21 @@
               <label class="radio"><input type="radio" name="gas-mlmode" value="multi" /> Multi-layer (optional)</label>
               <div id="gas-ml" style="display:none">
                 <div class="senshead">Per-layer Darcy — Re/Rw shared; CGR/WGR blank = base. J-form collapse is exact.</div>
-                <table class="sens" id="gas-ml-table"></table>
+                <div class="gridscroll"><table class="sens" id="gas-ml-table"></table></div>
               </div>
             </div>
             <div id="gas-ipr-cn" style="display:none"><div id="gas-cn-fields"></div></div>
           </fieldset>
           <fieldset>
             <legend>Multi-rate test (Pwf blank &rarr; get Pwf from THP)</legend>
-            <table class="sens" id="gas-test-table"></table>
+            <div class="gridscroll"><table class="sens" id="gas-test-table"></table></div>
             <button id="gas-btn-calibrate" class="action secondary">Calibrate from test</button>
             <div id="gas-cal-result" class="note"></div>
           </fieldset>
           <fieldset>
             <legend>Sensitivities</legend>
             <div class="senshead">VLP parameter sets (blank = base value)</div>
-            <table class="sens" id="gas-sens-table"></table>
+            <div class="gridscroll"><table class="sens" id="gas-sens-table"></table></div>
             <div class="senshead">Future reservoir pressures, psi</div>
             <div id="gas-pres-list" class="presrow"></div>
             <button id="gas-btn-sens" class="action secondary">Run sensitivities</button>
@@ -385,7 +385,7 @@
             <label class="radio"><input type="radio" name="gas-pressource" value="gauge" /> 4. Pres from memory gauges</label>
             <div id="gas-rsv-guidance" class="guidance"></div>
             <div id="gas-rsv-prod">
-              <div class="senshead">prod_data — inputs green (CGR/WGR blank = base), outputs dt / pr / z filled by the solver</div>
+              <div class="senshead">prod_data — inputs green (CGR/WGR blank = base); dt / z by the solver; Pwf and Pr grey when the model backs them out, typed on a User row</div>
               <div class="tbl-actions">
                 <button id="gas-prod-paste" class="copybtn" type="button">Paste from clipboard</button>
                 <button id="gas-prod-csv" class="copybtn" type="button">Import CSV</button>
@@ -393,7 +393,7 @@
                 <button id="gas-prod-clear" class="copybtn" type="button">Clear</button>
                 <span class="note" style="margin:0">or click a cell and Ctrl+V (Date, FTHP, q, CGR, WGR, Pwf)</span>
               </div>
-              <table class="sens" id="gas-prod-table"></table>
+              <div class="gridscroll"><table class="sens" id="gas-prod-table"></table></div>
             </div>
             <div id="gas-rsv-sithp" style="display:none">
               <div class="senshead">Static surveys — q = 0 rows, Pres by the static gas march (well-model data + geothermal temp). Gp is taken from the cumulative of the prod data table (selection 1).</div>
@@ -404,7 +404,7 @@
                 <button id="gas-sithp-clear" class="copybtn" type="button">Clear</button>
                 <span class="note" style="margin:0">or click a cell and Ctrl+V (Date, STHP, rate, CGR, WGR)</span>
               </div>
-              <table class="sens" id="gas-sithp-table"></table>
+              <div class="gridscroll"><table class="sens" id="gas-sithp-table"></table></div>
             </div>
             <div id="gas-rsv-gauge" style="display:none">
               <div class="senshead">Memory-gauge surveys — inputs Date and Pr (the static, built-up reservoir pressure at datum); z, Gp and p/Z are calculated. Gp is taken from the cumulative of the prod data table (selection 1).</div>
@@ -415,7 +415,7 @@
                 <button id="gas-gauge-clear" class="copybtn" type="button">Clear</button>
                 <span class="note" style="margin:0">or click a cell and Ctrl+V (Date, Pr)</span>
               </div>
-              <table class="sens" id="gas-gauge-table"></table>
+              <div class="gridscroll"><table class="sens" id="gas-gauge-table"></table></div>
             </div>
             <div id="gas-rsv-rlt" style="display:none">
               <div class="senshead">Reservoir limit (workbook sheet): m = −slope(Pwf, t) over all rows, Ct = Cg·Sg + Co·So + Cw·Sw + Cf, GIIP = q̄/(Ct·m)</div>
@@ -452,7 +452,7 @@
     <button id="mb-results" type="button">Results</button>
   </nav>
   <div id="error-bar" style="display:none"></div>
-  <script src="/export.js?v=2026-09-13f"></script>
-  <script src="/app.js?v=2026-09-13f"></script>
+  <script src="/export.js?v=2026-09-25a"></script>
+  <script src="/app.js?v=2026-09-25a"></script>
 </body>
 </html>

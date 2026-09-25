@@ -220,6 +220,78 @@ test('gas reserve endpoint: Pres solver + p/Z fit from form rows', () => {
   console.log(`    gas reserve: GIIP=${r.fit.giipBscf?.toFixed(1)} Bscf, pzi=${r.fit.pziPsi.toFixed(0)} psi`);
 });
 
+// prod_data Model column (gas). Mirrors the oil table's User row, minus the
+// fill-down: rows are independent because the usual case is one build-up
+// gauge on one date.
+const GAS_MODEL_ROWS = [
+  { date: '0', thpPsi: '1625', qMMscfd: '14.137', pwfPsi: '' },
+  { date: '60', thpPsi: '1625', qMMscfd: '13.2', pwfPsi: '' },
+  { date: '120', thpPsi: '1625', qMMscfd: '12.4', pwfPsi: '' },
+  { date: '180', thpPsi: '1625', qMMscfd: '11.7', pwfPsi: '' },
+];
+
+test('gas reserve Model column: a User row takes its typed Pwf and Pr, and needs both', () => {
+  const rows = GAS_MODEL_ROWS.map((r, i) =>
+    i === 2 ? { ...r, model: 'user', pwfPsi: '2500', presPsi: '3000' } : { ...r, model: 'model' }
+  );
+  const r = handlers['gas/reserve']({ ...GAS_FORM, prodRows: rows, sithpRows: [] });
+  assert.equal(r.error, undefined);
+  assert.equal(r.rows[2].pwfSource, 'input');
+  assert.equal(r.rows[2].presSource, 'input');
+  assert.equal(r.rows[2].pwfPsi, 2500);
+  assert.equal(r.rows[2].presPsi, 3000);
+  for (const i of [0, 1, 3]) assert.equal(r.rows[i].presSource, 'calculated');
+  // the typed Pr is in the fit: Current Pres is the workbook's MIN of the Pr
+  // column (AH8), and 3000 sits below every backed-out value in this history
+  // (the lowest of those is ~3169) — so the User row sets it
+  assert.equal(r.currentPresPsi, Math.min(...r.rows.map((x) => x.presPsi)));
+  assert.equal(r.currentPresPsi, 3000);
+
+  // a User row missing Pr stops with the row named — and a blank Pr cell is
+  // exactly what a grey computed value reads as, so a row switched to User
+  // over a stale number gets this rather than the number
+  const missing = handlers['gas/reserve']({
+    ...GAS_FORM, sithpRows: [],
+    prodRows: rows.map((x, i) => (i === 2 ? { ...x, presPsi: '' } : x)),
+  });
+  assert.match(missing.error, /prod row 3 .*User row needs BOTH Pwf and Pr/);
+
+  // a Pr left in the cell of a Model row is NOT an input: Pr is backed out
+  // and the typed number is ignored, so it cannot leak into the fit
+  const stale = handlers['gas/reserve']({
+    ...GAS_FORM, sithpRows: [],
+    prodRows: GAS_MODEL_ROWS.map((x, i) => (i === 1 ? { ...x, model: 'model', presPsi: '9999' } : x)),
+  });
+  assert.equal(stale.error, undefined);
+  assert.equal(stale.rows[1].presSource, 'calculated');
+  assert.notEqual(stale.rows[1].presPsi, 9999);
+
+  // a model this tab does not have fails by row
+  const unknown = handlers['gas/reserve']({
+    ...GAS_FORM, sithpRows: [],
+    prodRows: GAS_MODEL_ROWS.map((x, i) => (i === 0 ? { ...x, model: 'esp' } : x)),
+  });
+  assert.match(unknown.error, /prod row 1 .*unknown model "esp"/);
+});
+
+test('gas reserve Model column: the reservoir limit honours a User row, the SITHP route ignores the column', () => {
+  const rows = GAS_MODEL_ROWS.map((r, i) =>
+    i === 2 ? { ...r, model: 'user', pwfPsi: '2500', presPsi: '3300' } : r
+  );
+  const rlt = handlers['gas/reserve']({ ...GAS_FORM, presSource: 'rlt', prodRows: rows, sithpRows: [] });
+  assert.equal(rlt.error, undefined);
+  assert.equal(rlt.rows[2].presSource, 'input');
+  assert.equal(rlt.rows[2].presPsi, 3300);
+  // SITHP reads the prod table for Gp only: a half-filled User row there
+  // must not stop a route that never solves per-row Pwf/Pr
+  const half = rows.map((x, i) => (i === 2 ? { ...x, presPsi: '' } : x));
+  const sithp = handlers['gas/reserve']({
+    ...GAS_FORM, presSource: 'sithp', prodRows: half,
+    sithpRows: [{ date: '0', sithpPsi: '2500' }, { date: '90', sithpPsi: '2000' }, { date: '180', sithpPsi: '1300' }],
+  });
+  assert.equal(sithp.error, undefined);
+});
+
 test('gas reserve route 1: SITHP statics, no IPR needed', () => {
   const r = handlers['gas/reserve']({
     ...GAS_FORM,

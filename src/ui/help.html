@@ -183,7 +183,7 @@ pre.eq code { background: none; padding: 0; }
   <h1>WellSim Manual</h1>
   <p class="tag">Nodal analysis, minimum connected reserves, and production forecasting for oil &amp; gas wells &mdash; a web port of the field-proven M.&nbsp;El-Ashry Excel toolset, with the macros replaced by deterministic solvers and every formula pinned against the original workbook cells.</p>
   <div class="statusrow">
-    <span class="chip"><b>344</b> regression and security tests passing</span>
+    <span class="chip"><b>348</b> regression and security tests passing</span>
     <span class="chip"><b>43/43</b> sheet-parity sensitivities</span>
     <span class="chip">gas march <b>bit-exact</b> vs workbook</span>
     <span class="chip">port 3355 &middot; no runtime dependencies</span>
@@ -211,7 +211,7 @@ pre.eq code { background: none; padding: 0; }
 
 <h2 id="run">Run &amp; test</h2>
 <pre class="eq">node src/server/server.js               # serves http://localhost:3355
-npm test                                # 344 tests
+npm test                                # 348 tests
 node scripts/validation-sweep.mjs       # 43 module-vs-workbook sensitivity cases</pre>
 <p>The server uses only Node built-ins; the UI is plain HTML/JS (Plotly for charts). Documentation lives in the repo: <code>README.md</code>, <code>docs/user-guide.md</code>, <code>docs/equations.md</code>, <code>docs/deploy.md</code>. A standalone portable build (<code>WellSim.exe</code>, no install, cases saved beside the exe) is produced from this same source tree by <code>build.ps1</code>.</p>
 
@@ -323,7 +323,8 @@ node scripts/validation-sweep.mjs       # 43 module-vs-workbook sensitivity case
 <h2 id="gas-reserve"><span class="sect">Gas</span> &mdash; Reserve estimate</h2>
 <div class="selgrid">
   <div class="selcard"><span class="n">1</span><h5>Prod data &amp; macro</h5>
-    <p>Per-row Pwf (input-or-march) &rarr; Pr = &radic;(1000q/J + Pwf&sup2;) &rarr; explicit Z &rarr; Gp trapezoid &rarr; p/Z vs Gp line &rarr; minimum connected GIIP.</p></div>
+    <p>Per-row Pwf (input-or-march) &rarr; Pr = &radic;(1000q/J + Pwf&sup2;) &rarr; explicit Z &rarr; Gp trapezoid &rarr; p/Z vs Gp line &rarr; minimum connected GIIP.</p>
+    <p><b>Model column</b> (per row): <b>Model</b> &mdash; the workbook&rsquo;s row: Pwf typed or marched from FTHP, Pr backed out of the IPR (a Pr left in the cell is replaced). <b>User</b> &mdash; type both Pwf and Pr, as from a build-up gauge on that date; no march, no IPR. Rows are independent &mdash; nothing fills down. A User row missing either value stops with that row named. The same rows feed the reservoir limit and the Forecast&rsquo;s start state.</p></div>
   <div class="selcard"><span class="n">2</span><h5>Pres from SITHP</h5>
     <p>Static shut-in surveys; Pres by the static gas march (gas-head-only stations, geothermal T, per-station Z &mdash; 1.2% vs the workbook case). Gp from prod cumulative; no IPR/VLP.</p></div>
   <div class="selcard"><span class="n">3</span><h5>Reservoir limit</h5>
@@ -528,6 +529,7 @@ LIMIT: neither MB carries a water term &mdash; the Forecast W.C affects LIFT onl
   <li><b>Rounding artifacts preserved</b> where parity needs them: &pi; = 22/7 trajectory cosine; the <code>rouhgsc</code> artifact available as a test override.</li>
   <li><b>Oil-forecast PVT evaluation point</b>: Rs/Bo/Bg/&mu; are evaluated at the TRIAL pressure inside each step&rsquo;s solve, for both methods. The saved Tarner sheet froze PVT at initial values; the training material directs otherwise, and the Walsh Gp residual moves with pressure almost entirely through the PVT (Bg, Rs, Rv) &mdash; freezing it leaves no root.</li>
   <li><b>Walsh PVT table pressure</b>: the sheet reads its PVT table at the parallel TARNER sheet&rsquo;s pressures (a shared-table convenience of the workbook); WellSim reads it at Walsh&rsquo;s own solved pressure.</li>
+  <li><b>Per-row Model / User in the gas prod_data</b> (WellSim extension, 25 Sep 2026): the gas reserve workbook backs every row&rsquo;s Pr out of the IPR and has no typed-Pr convention. The Model column lets a date that carries a measured build-up pressure enter it directly (User: Pwf and Pr typed) while every other date solves exactly as the sheet does (Model). No fill-down, because the usual case is one gauge on one date. Rows without a model are Model rows.</li>
   <li><b>Per-row well model in prod_data</b> (WellSim extension, 6 Sep 2026): no workbook switches the well model within one production history &mdash; each sheet solves every row with its own lift and its own J. The Model column lets a history that crossed a lift change (natural &rarr; gas lift &rarr; ESP) be solved row by row with the model and the J that applied on that date, and the Forecast starts from the last modelled row. Rows without a model solve exactly as the sheets do.</li>
   <li><b>Lift-selection depth is METRES</b>: the workbook&rsquo;s <code>limits</code> sheet gives depth as 1000&ndash;3700 for an ESP and so on, and it means metres &mdash; its Level-1 chart axis reads <em>&ldquo;Depth, m&rdquo;</em>, and its demo well is 3200, the same ~3200&nbsp;m well the oil model carries at 2810&nbsp;mAH. The port had labelled those numbers <em>ft</em>, so the row now reads <b>To perf. Depth, m</b> (screening bands <b>v1.3</b>, 8 Sep 2026). No number moved: a run that typed 3200 meaning depth scores exactly as before, but a depth typed in feet for that well &mdash; 10,500 &mdash; now correctly screens out instead of being read as a 10,500&nbsp;m well would be. A case saved before the rename keeps its typed depth.</li>
   <li><b>Lift-selection geometry floors</b>: the workbook&rsquo;s <code>limits</code> sheet starts every method&rsquo;s deviation AND dog-leg bands at 0.1, which puts a perfectly vertical, perfectly straight well OUTSIDE all five envelopes at once &mdash; the opposite of the truth, since a vertical hole with no dog-leg is the easiest case any of them will ever see. WellSim uses <b>0</b> for both (screening bands <b>v1.2</b>, 8 Sep 2026): a lift method is limited by how MUCH a hole bends, never by how little. The bands version is stamped on every run, so an older screen still reproduces.</li>

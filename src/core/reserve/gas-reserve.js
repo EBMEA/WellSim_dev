@@ -114,6 +114,14 @@ export function gasPresSolver(marchCfg, ipr, rows) {
   return rows.map((r) => {
     const tDays = toDays(r.date);
     const dtDays = tDays - t0; // the workbook's "delta, time days" column
+    // prod_data Model column (WellSim extension, 25 Sep 2026). A User row
+    // carries BOTH its Pwf and its Pr typed — a build-up gauge on that date —
+    // so there is no march and no IPR for it. Every other row is the
+    // workbook's: Pwf typed-or-marched, Pr backed out of the IPR. The API
+    // refuses a User row missing either value before this runs; a caller that
+    // skips that check (the validation sweep passes plain rows) gets the
+    // workbook path, never a half-typed row.
+    const user = r.model === 'user' && r.pwfPsi != null && r.presPsi != null;
     const pwfSource = r.pwfPsi != null ? 'input' : 'calculated';
     const pwfPsi =
       r.pwfPsi ??
@@ -124,8 +132,10 @@ export function gasPresSolver(marchCfg, ipr, rows) {
         cgrStbMMscf: r.cgrStbMMscf ?? marchCfg.cgrStbMMscf,
         wgrStbMMscf: r.wgrStbMMscf ?? marchCfg.wgrStbMMscf,
       }).pwfPsi;
-    const presPsi =
-      ipr.c != null
+    const presSource = user ? 'input' : 'calculated';
+    const presPsi = user
+      ? r.presPsi
+      : ipr.c != null
         ? prFromTestGasCn({ qMMscfd: r.qMMscfd, pwfPsi, c: ipr.c, n: ipr.n })
         : prFromTestGasJ({ qMMscfd: r.qMMscfd, pwfPsi, j: ipr.j });
     const z = zAtRes(marchCfg, presPsi);
@@ -143,6 +153,8 @@ export function gasPresSolver(marchCfg, ipr, rows) {
       pwfPsi,
       pwfSource,
       presPsi,
+      presSource,
+      model: r.model ?? null,
       dpPsi: presPsi - pwfPsi, // calculated drawdown
       z,
       pOverZ: presPsi / z,

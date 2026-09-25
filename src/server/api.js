@@ -1191,6 +1191,23 @@ function interpGp(solved, tDays) {
  *               needed; production rows supply only the Gp integration;
  *   'flowing' — route 2 (default): Pres solver back-calculation from
  *               flowing data with the frozen calibrated IPR. */
+/** prod_data Model column (gas): Model — the workbook's row, Pwf typed-or-
+ *  marched and Pr backed out of the IPR (blank means the same) — or User,
+ *  Pwf AND Pr typed, no march, no IPR. Rows are independent: the usual case
+ *  is one build-up gauge on one date, so nothing fills down. A row naming
+ *  a model this tab has no such thing as fails by row, never falls back. */
+function gasRowModelCheck(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.model == null || r.model === 'model') continue;
+    const where = `prod row ${i + 1} (${r.date})`;
+    if (r.model !== 'user') return { error: `${where}: unknown model "${r.model}"` };
+    if (r.pwfPsi == null || r.presPsi == null)
+      return { error: `${where}: a User row needs BOTH Pwf and Pr typed` };
+  }
+  return null;
+}
+
 export function gasReserve(f) {
   const r = gasReserveInner(f);
   // condensate SG / MW from the well model's condApi, on every route
@@ -1209,6 +1226,12 @@ function gasReserveInner(f) {
       pwfPsi: num(r.pwfPsi),
       cgrStbMMscf: num(r.cgrStbMMscf),
       wgrStbMMscf: num(r.wgrStbMMscf),
+      // prod_data Model column — see gasRowModelCheck. A typed Pr is honoured
+      // on a User row ONLY: on a Model row Pr is backed out of the IPR, and a
+      // value left in the cell from an earlier run must not silently override
+      // it. Blank model = Model, so older saved cases solve exactly as before.
+      model: r.model && String(r.model).trim() !== '' ? String(r.model).trim() : undefined,
+      presPsi: r.model === 'user' ? num(r.presPsi) : undefined,
     }));
   // reject unparseable dates loudly — a NaN date would silently poison the
   // Gp integration and the p/Z fit
@@ -1217,6 +1240,13 @@ function gasReserveInner(f) {
       return { error: `row ${i + 1}: unparseable date "${rows[i].date}" — use dd/mm/yyyy hh:mm:ss or a day number` };
   }
   const src = f.presSource === 'prod' ? 'flowing' : (f.presSource ?? 'flowing');
+  // the Model column only matters where the per-row Pwf/Pr are solved — the
+  // flowing fit and the reservoir limit. SITHP and the gauge routes read the
+  // prod table for Gp alone, so a half-filled User row must not stop them.
+  if (src === 'flowing' || src === 'rlt') {
+    const bad = gasRowModelCheck(rows);
+    if (bad) return bad;
+  }
 
   if (src === 'rlt') {
     const ipr = buildGasIpr(f, cfg);

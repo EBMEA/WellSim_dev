@@ -254,25 +254,49 @@ for (const [g, name, route, body, check] of CHECKS) {
   console.log(`    ${pass ? 'ok  ' : 'FAIL'} ${name.padEnd(30)} ${detail}`);
 }
 
-console.log('\n  account containment — a refusal is the PASS');
+// Two deployments, two rules. The WEB deployment must refuse every account
+// route: its legacy store accepted a typed company slug as membership. The
+// PORTABLE has no accounts at all and keeps cases in a folder beside the exe
+// — its status says enabled:true, mode:'portable', and that is not a breach
+// (HANDOVER: "they are different stores"). Read the mode first, then hold
+// each deployment to ITS rule. Until 25 Sep 2026 this group asserted the web
+// rule against everything, and the first exe smoked after it was extended
+// (3.0) reported eight failures that were the checker, not the build.
+let statusJson = null;
+try { statusJson = (await post('accounts/status', {})).json; } catch { statusJson = null; }
+const portable = statusJson?.mode === 'portable';
+console.log(portable
+  ? '\n  account containment — PORTABLE: no accounts, local case store open, registration closed'
+  : '\n  account containment — WEB: a refusal is the PASS');
 for (const route of GATED) {
   let pass = false, detail = '';
   try {
     const { json } = await post(route, {});
-    pass = json.code === 'legacy_case_store_disabled';
-    detail = pass ? 'refused: legacy_case_store_disabled' : `NOT REFUSED — ${JSON.stringify(json).slice(0, 58)}`;
+    if (portable) {
+      // auth routes do not exist here; the cases routes answer from the local store
+      const absent = /unknown endpoint/.test(json.error ?? '');
+      if (route.startsWith('auth/')) {
+        pass = absent;
+        detail = pass ? 'absent, as it must be' : `PRESENT — ${JSON.stringify(json).slice(0, 58)}`;
+      } else {
+        pass = json.code !== 'legacy_case_store_disabled' && !absent;
+        detail = pass ? 'local store answers' : `${JSON.stringify(json).slice(0, 70)}`;
+      }
+    } else {
+      pass = json.code === 'legacy_case_store_disabled';
+      detail = pass ? 'refused: legacy_case_store_disabled' : `NOT REFUSED — ${JSON.stringify(json).slice(0, 58)}`;
+    }
   } catch (e) { detail = `threw: ${e.message.slice(0, 60)}`; }
   results.push({ group: 'Account containment', name: route, route, pass, detail });
   console.log(`    ${pass ? 'ok  ' : 'FAIL'} ${route.padEnd(30)} ${detail}`);
 }
-try {
-  const { json } = await post('accounts/status', {});
-  const pass = json.enabled === false && json.registrationEnabled === false;
+{
+  const json = statusJson ?? {};
+  const pass = portable
+    ? json.enabled === true && json.registrationEnabled === false
+    : json.enabled === false && json.registrationEnabled === false;
   results.push({ group: 'Account containment', name: 'accounts/status', route: 'accounts/status', pass, detail: JSON.stringify(json) });
   console.log(`    ${pass ? 'ok  ' : 'FAIL'} ${'accounts/status'.padEnd(30)} ${JSON.stringify(json)}`);
-} catch (e) {
-  results.push({ group: 'Account containment', name: 'accounts/status', route: 'accounts/status', pass: false, detail: e.message });
-  console.log(`    FAIL accounts/status — ${e.message}`);
 }
 
 // COVERAGE. The point of this script is "every module and submodule", and a

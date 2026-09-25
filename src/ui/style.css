@@ -194,6 +194,7 @@ tr.thrust-up input { background: #FBE9E7 !important; }
    narrow to read a pressure in. The floors below are what a value actually
    needs; the table takes the width it needs and the box scrolls. */
 .gridscroll { overflow-x: auto; overflow-y: hidden; }
+.sens th small { display: block; font: 400 8.5px/1.3 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink-3); }
 .gridscroll .sens { width: auto; min-width: 100%; }
 .gridscroll .sens th { white-space: nowrap; }
 .gridscroll .sens td input { min-width: 62px; }
@@ -293,7 +294,14 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--accent); }
   .frow label { font-size: 11px; }
   .presrow { flex-wrap: wrap; }
   .presrow input { width: 31%; }
-  fieldset, .group { overflow-x: auto; }
+  /* NOT overflow-x: auto. An auto overflow-x forces overflow-y to auto too,
+     which made every card a scroll container: the sticky Run button then
+     pinned to the CARD's bottom edge instead of the viewport's, and floated
+     over the prod_data rows while the card scrolled its caption and buttons
+     sideways along with the table. Every grid table now scrolls inside its
+     own .gridscroll box, so the card itself only needs to clip. Measured on
+     a 375px phone, 25 Sep 2026. */
+  fieldset, .group { overflow-x: clip; }
 
   /* dense grid tables (reserve prod data, static surveys, multi-rate tests,
      layers): compact cells with sensible column widths — the table scrolls

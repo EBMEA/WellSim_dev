@@ -20,7 +20,9 @@ chart, a pink output cell, or a grey *input-or-calculated* cell.
 - **Side tables** next to each chart hold the plotted numbers with a **Copy** button
   (tab-separated — pastes straight into Excel).
 - **Production tables** accept clipboard paste (button, or click a cell and Ctrl+V).
-  Column order: `Date, FTHP, rate, CGR|GOR, WGR|WC, Pwf`. A header line is skipped
+  Column order: `Date, FTHP, rate, CGR|GOR, WGR|WC, Pwf` — the Model column is
+  never pasted; pasted rows are Model rows, and a row that carries a build-up
+  gauge is switched to User by hand and given its Pr. A header line is skipped
   automatically. `+10 rows` extends the table (up to 200 rows).
 - **Dates** accept: `17-Nov-14`, `17-Nov-2014 13:00:00`, `05/03/2014 06:30`,
   ISO (`2014-11-17`), or a plain day number / Excel serial. Impossible dates
@@ -616,9 +618,29 @@ Four selections (one active). Well data and the matched J come from the Well mod
 
 ### 5.1 Prod data & macro (Pres solver)
 
-Table `Date | FTHP | Gas rate | CGR | WGR | dt | Pwf (in-or-calc) | pr | z`.
+Table `Date | Model | FTHP | Gas rate | CGR | WGR | dt (out) | Pwf (input-or-calc) | Pr (input-or-calc) | z (out)`.
 Per row: Pwf marched (or input), Pr closed-form from the frozen J
 (Pr = √(1000·q/J + Pwf²), or the C&n form), z explicit, Gp by trapezoid.
+
+**Model** (per row, a WellSim extension — the gas reserve workbook backs every
+row's Pr out of the IPR and has no typed-Pr convention):
+
+| Model | Pwf | Pr |
+|---|---|---|
+| Model (default; blank is the same) | typed, else marched from the row's FTHP at its rate and ratios | backed out of the IPR — a number left in the cell is **replaced** |
+| User | typed | typed — both are required, as from a build-up gauge on that date |
+
+Rows are independent: nothing fills down, because the usual case is one gauge
+on one date, not a conversion. A User row missing either value stops with the
+row named. A grey computed Pr counts as blank, so switching a row to User
+always means typing its Pr. The same rows feed selection 3 (reservoir limit)
+and the Forecast's start state; selections 2 and 4 read the table for Gp only
+and ignore the column. Paste and CSV never carry the model — pasted rows are
+Model rows.
+
+On a narrow window or a phone the table scrolls sideways inside its own box
+(every grid table does); the date header shows the accepted format beneath
+its name rather than as part of it.
 The **p/Z vs Gp** line is fitted (prod points only) → **minimum connected GIIP**
 = intercept-to-zero, shown as the big GIP banner.
 Defaults: `17-Nov-14 1625 18.56 · 17-Nov-19 1000 17 · 26-Nov-24 500 11` (CGR 57/40/20,

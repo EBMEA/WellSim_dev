@@ -3,7 +3,7 @@
 **Build 2.7 — 9 September 2026**, from commit `8423d73` of the main project.
 Identical physics to what **https://wellssim.app** serves today (note the
 double s; the old single-s name was retired on 8 September 2026). The source is
-guarded by 344 tests and the 43/43 validation sweep, and this build itself
+guarded by 348 tests and the 43/43 validation sweep, and this build itself
 passed the **59/59 module smoke suite** with the exe as the only listener —
 every route in the API, both fluids, both lift types, the injector, the
 forecast, the artificial-lift screen and the account containment.
@@ -109,6 +109,20 @@ Changes in build 2.4 (7 Sep), kept for reference:
   well as the last modelled row. Rows with no model solve exactly as before.
   The table scrolls inside its own box rather than squeezing, and the two
   lift columns appear only when a row asks for them.
+- **The gas reserve prod_data gains a Model column as well** (25 Sep 2026):
+  *Model* — the workbook's row, Pwf typed or marched from FTHP and Pr backed
+  out of the IPR (a Pr left in the cell is replaced) — or *User*, Pwf and Pr
+  both typed, as from a build-up gauge on that date, with no march and no IPR.
+  Rows are independent — nothing fills down, since the usual case is one gauge
+  on one date. A User row missing either value stops with the row named. The
+  same rows feed the reservoir limit and the Forecast's start state.
+- **Every grid table scrolls sideways inside its own box** — the reserve prod
+  tables, surveys, multi-rate tests, layers, pump curves and sensitivity sets,
+  on any window narrower than the table. On a phone the card itself no longer
+  scrolls, so the sticky *Run* button stays put over the viewport instead of
+  floating over the rows while the caption and buttons slid sideways. The date
+  header shows its accepted format beneath the name instead of forcing the
+  column to the width of `dd/mm/yyyy hh:mm:ss`.
 - **Match head factor from test** — a button under *Match factors* on all
   three tabs. *Calibrate from test* matches the IPR; this matches the march:
   it solves the Matching head so the marched pressure meets a **typed**
@@ -480,7 +494,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 (First time: `npm install --save-dev esbuild postject` with Node on PATH.)
 The physics is identical to the main project — after `npm install`, `node --test`
-runs the same 344 tests against this copy.
+runs the same 348 tests against this copy.
 
 ## Code signing
 

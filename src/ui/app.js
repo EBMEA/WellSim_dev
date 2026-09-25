@@ -712,16 +712,27 @@ function setOut(id, value, decimals = 1) {
 
 // the workbook prod_data layout: Date | FTHP | Gas rate | CGR | WGR (inputs;
 // Date accepts dd/mm/yyyy hh:mm:ss or a day serial, sporadic timing ok),
-// then dt | Pwf | pr | z (calculated; Pwf accepts a gauge value).
+// then dt | Pwf | Pr | z (calculated; Pwf accepts a gauge value).
+//
+// Model column (WellSim extension, 25 Sep 2026): Model — the workbook's row,
+// Pwf typed-or-marched from FTHP and Pr backed out of the IPR — or User, Pwf
+// AND Pr both typed (a build-up gauge on that date), no march, no IPR. Pr is
+// input-or-calculated like Pwf: typed on a User row, grey and REPLACED on a
+// Model row. Rows are independent — no fill-down, unlike the oil table, since
+// the usual case is one gauge on one date, not a conversion. Paste and CSV
+// keep the workbook's column order and never carry the model: pasted rows
+// are Model rows.
+const GAS_PROD_MODELS = [['model', 'Model'], ['user', 'User']];
 const PROD_COLS = [
-  { key: 'date', label: 'Date dd/mm/yyyy hh:mm:ss' },
+  { key: 'date', label: 'Date<small>dd/mm/yyyy hh:mm:ss</small>' },
+  { key: 'model', label: 'Model', select: GAS_PROD_MODELS, defaultValue: () => 'model' },
   { key: 'thpPsi', label: 'FTHP psi' },
   { key: 'qMMscfd', label: 'Gas MMscf/d' },
   { key: 'cgrStbMMscf', label: 'CGR' },
   { key: 'wgrStbMMscf', label: 'WGR' },
   { key: 'dtDays', label: 'dt d', out: true },
   { key: 'pwfPsi', label: 'Pwf psi' },
-  { key: 'presPsi', label: 'pr', out: true },
+  { key: 'presPsi', label: 'Pr psi' },
   { key: 'z', label: 'z', out: true },
 ];
 // memory-gauge surveys: Date | Pr. The demo values ARE the pressures the
@@ -813,7 +824,7 @@ function fillProdRows(rows, startIdx = 0) {
 // row, computed (grey) on every other.
 const OIL_PROD_MODELS = [['natural', 'Natural'], ['gaslift', 'Gas lift'], ['esp', 'ESP'], ['user', 'User']];
 const OIL_PROD_COLS = [
-  { key: 'date', label: 'Date dd/mm/yyyy hh:mm:ss' },
+  { key: 'date', label: 'Date<small>dd/mm/yyyy hh:mm:ss</small>' },
   { key: 'model', label: 'Model', select: OIL_PROD_MODELS, defaultValue: () => oilLiftType() },
   { key: 'thpPsi', label: 'FTHP psi' },
   { key: 'qOilStbD', label: 'Oil stb/d' },
@@ -3102,7 +3113,9 @@ async function gasReserveRun() {
       if (i == null) return;
       if (row.pwfSource === 'calculated') setComputed(`gas-prod-${i}-pwfPsi`, row.pwfPsi, 1);
       setOut(`gas-prod-${i}-dtDays`, row.dtDays, 2);
-      setOut(`gas-prod-${i}-presPsi`, row.presPsi, 1);
+      // a backed-out Pr REPLACES whatever the cell held: only a User row's
+      // typed Pr is an input, and the server has already ignored any other
+      if (row.presSource === 'calculated') setComputedAlways(`gas-prod-${i}-presPsi`, row.presPsi, 1);
       setOut(`gas-prod-${i}-z`, row.z, 4);
     });
   }
