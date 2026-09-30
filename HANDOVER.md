@@ -18,10 +18,15 @@ and the portable carry the same application:
 | `WellSim-FullBackup-2026-09-30` (D: and F:) | `edca0f9` | 51/51 on each, drilled from both |
 | `WellSim-Handover-2026-09-27` (D: and F:) | `a3dd77c` | 167/167 on each; **two application commits behind** — cut a fresh one |
 
-**F: now holds everything D: holds.** Mirrored and verified on 30 September. It also
-still holds the stale `WellSim-Handover-2026-09-18`, which the owner asked to have
-removed on 27 September while F: was detached; removing it now waits on the owner's
-say-so.
+**F: now holds everything D: holds.** Mirrored and verified on 30 September, and the
+stale `WellSim-Handover-2026-09-18` removed from it the same day at the owner's
+instruction, after checking it held nothing found nowhere else. The 27 September
+handover is now the only one, on both drives.
+
+**BitLocker is settled, and F: is NOT encrypted.** D:, C: and E: are encrypted and
+protected. F: — the Transcend StoreJet USB drive that holds every backup, every
+handover, the client cases and the code-signing private key — reports
+`BitLocker Version: None`, `Protection Off`, 0.0 % encrypted. See *Still open*.
 
 **The deploy of `f28fc23` failed twice before it worked, and the reason will recur if it
 is forgotten.** The server's checkout had been a **detached HEAD** since the 12 September
@@ -455,13 +460,30 @@ workbooks, the ESP catalogue and `ALdocs/` out of git is what makes that safe, a
   Hetzner one is full control of `91.98.23.255`, a live server still serving thepwf.net
   and bldrz.net, and `wellsim-deploy` is still in its `authorized_keys`. Revoking them
   in the two consoles is the step that actually closes this.
-- **BitLocker on D: and F: is unverified.** Every non-elevated route was refused;
-  `manage-bde -status` from an elevated prompt, with both drives present, settles it.
-  These drives hold real client cases.
+- **F: IS NOT ENCRYPTED** (30 September). `manage-bde -status F:`, run by the owner
+  from an elevated prompt: `BitLocker Version: None`, `Conversion Status: Fully
+  Decrypted`, `Percentage Encrypted: 0.0%`, `Protection Status: Protection Off`,
+  `Key Protectors: None Found` — it has never had BitLocker. F: is a USB drive that
+  travels, and it holds the client cases from both companies in every backup and
+  handover, the vendor ESP catalogues and workbooks, and
+  `F:\key\M-ElAshry-CodeSigning.pfx`, whose password can be attacked offline by
+  anyone holding the file. **The fix is the owner's:** Explorer → right-click F: →
+  *Turn on BitLocker* → password unlock → save the recovery key somewhere that is NOT
+  F: → *Encrypt entire drive* → *Compatible mode*. Encryption changes no file, so every
+  manifest still verifies afterwards. Re-check with `manage-bde -status F:`: it should
+  read `Protection On` and `Fully Encrypted`.
+- **D:, C: and E: ARE encrypted and protected** (30 September). Read without
+  elevation from the shell's own per-volume property,
+  `Shell.Application` → `NameSpace(17).ParseName('D:').ExtendedProperty('System.Volume.BitLockerProtection')`
+  — `1` = on and protected (`2` off, `3` encrypting, `5` suspended, `6` locked).
+  **That is the route when `manage-bde`, `Get-BitLockerVolume` and the CIM class all
+  return Access denied** without elevation, as they did every time from 10 to
+  30 September. On F: it returned `0`, which is not a documented state; the owner's
+  elevated `manage-bde` is what settled F:.
 - **Two credential files sit at the D: root** — `d:\wellssim_deploy-2026-09-11` and
-  `d:\id_rsa` — on a drive whose encryption is unverified. Agent tooling refuses to
+  `d:\id_rsa`. D: is encrypted, so they are protected at rest, but they are still
+  credentials sitting at a drive root with no purpose left. Agent tooling refuses to
   touch files at a drive root, so removing them is a manual step.
-- **F: is four backups behind** (see 13 September, above).
 - **The service worker can serve one stale load after a deploy.** `sw.js` precaches the
   BARE paths (`/app.js`, no `?v=`) and matches with `{ ignoreSearch: true }`, so one
   cached entry answers every stamped request — and `cache.add('/app.js')` refetches
@@ -915,8 +937,8 @@ appeared in the first place.
 
   **THAT LAST CLAUSE IS FALSE AGAIN, AND HAS BEEN SINCE 11 SEPTEMBER.** Two
   files were placed at the D: root during the wellssim.app deploy —
-  `d:\wellssim_deploy-2026-09-11` and `d:\id_rsa` — on a drive whose
-  encryption has never been verified. They are listed under *Still open*.
+  `d:\wellssim_deploy-2026-09-11` and `d:\id_rsa` — on D:, which was verified
+  encrypted on 30 September. They are listed under *Still open*.
   Nothing here reads or uses them; removing them is a manual step, because
   agent tooling refuses to touch files at a drive root.
 
