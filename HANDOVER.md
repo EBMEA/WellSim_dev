@@ -1,22 +1,27 @@
 # WellSim — handover
 
 **Live:** **[https://wellssim.app](https://wellssim.app)** (note the DOUBLE s) — Spaceship
-shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `f98817e` ·
+shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `d5984d0` ·
 **Repo:** https://github.com/EBMEA/WellSim_dev ·
 **Manual:** `src/ui/help.html` (served at /help.html) ·
 **Codex comparison:** https://bldrz.net
 
-**Where it stands, 25 September 2026.** `main` is at `f28fc23` (219 commits), working
-tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The live site and the
-portable both carry that commit's application:
+**Where it stands, 30 September 2026.** `main` is at `d5984d0` (222 commits), working
+tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The live site carries
+that commit; the portable and the backups are behind it:
 
 | | commit | note |
 | --- | --- | --- |
-| `wellsim-dev/main` (GitHub) | `f28fc23` | default branch, **public** |
-| https://wellssim.app | `f28fc23` | every served file byte-identical to the commit; 59/59 on the live URL; the Model column seen in a real browser |
-| `D:\WellSim_3.0` (D: only, portable exe) | `f28fc23` | built from the same tree before it was committed — the patch beside the exe hashes to `git diff 3b173d0 f28fc23`; **not on F:** |
-| `D:\WellSim-Handover-2026-09-18` (D: and F:) | `3b173d0` | one commit behind; 165/165 verified on both |
-| `D:\WellSim_2.9` (D: and F:) | `c7fb645` | superseded by 3.0 |
+| `wellsim-dev/main` (GitHub) | `d5984d0` | default branch, **public** |
+| https://wellssim.app | `d5984d0` | every served file byte-identical to the commit; 59/59 on the live URL; today's SERVER behaviour proven from outside (see 30 September) |
+| `WellSim_3.0` (D: and F:, portable exe) | `f28fc23` | **behind** — no SITHT column, no multi-layer zones, none of the well-model wiring, no wear fix. Physics of what it does have is unchanged |
+| `WellSim-FullBackup-2026-09-27` (D: only) | `a3dd77c` | 51/51, drilled; **two application commits behind** |
+| `WellSim-Handover-2026-09-27` (D: only) | `a3dd77c` | 167/167, drilled; **two application commits behind** |
+
+**F: is two backups and one handover behind.** It holds everything through
+`WellSim-FullBackup-2026-09-13b` and `WellSim_3.0`, plus the stale
+`WellSim-Handover-2026-09-18` — which the owner asked to have removed from F: and
+which could not be, because F: was detached at the time.
 
 **The deploy of `f28fc23` failed twice before it worked, and the reason will recur if it
 is forgotten.** The server's checkout had been a **detached HEAD** since the 12 September
@@ -32,6 +37,81 @@ the shared-hosting runbook; both deploy routes work normally now.
 and no account, and is what goes to a client on a USB stick.
 
 ---
+
+## 30 September — SITHT on the gas surveys, and multi-layer zones on every well-model route
+
+Two commits, both deployed the same day. `448cfb0` and `d5984d0`.
+
+**Gas SITHP surveys (`448cfb0`).** The survey table's "Gas rate (0)" column is gone —
+every row of a static survey is q = 0 by definition and the static march never read
+it. In its place **SITHT**, the shut-in tubing-head temperature. The march always
+took it: `staticGasMarch` runs a geothermal profile linear in TVD **from SITHT at the
+wellhead to Tres at the perfs** and evaluates every station's Z and gas density on
+that line, so it shapes the whole column. It simply had no UI column, so every
+survey ran on the well-model soil temperature. Blank still means soil temp, now
+**shown grey** so the table says what it ran on. The demo leaves it blank on purpose:
+route 2's pressures then equal route 4's gauge defaults, and both give **123.80 Bscf**.
+The manual had claimed 120.19 Bscf for that cross-check — stale since the condensate
+total change; corrected.
+
+**Multi-layer zones (`d5984d0`).** Each layer row on the oil and gas IPR blocks has an
+**Active** box and a **Zone** name. Defaults: rows named Layer1…Layer4, **only the first
+two ticked** — the two the demo fills. Unticked, a zone leaves the composite entirely.
+Fewer than two active zones **stops** with a message rather than quietly solving one
+zone — the owner's choice; a single zone in multi-layer mode is more likely a slip.
+A cleared name falls back to Layer<row>, so survivors keep their names when a zone
+between them is switched off. Names reach the layers tables, the Calibrate message
+and **every IPR/VLP legend**, including the ESP catalogue view's, which never drew
+zone curves before.
+
+**The layers were reaching only two routes.** Solve well and Calibrate built the
+composite; the ESP coupled solve, the gas-lift curve, both sensitivities, both head
+matches and the ESP wear / separator / future-Pres matches each built their own
+single-layer IPR and ignored the block — **switching an ESP well to a catalogue pump
+switched its reservoir model off.** They all go through `oilWellModel` /
+`gasWellModel` now. **Reserve and forecast stay single-layer by design** (one
+calibrated J against a Pr history; a multi-layer Pr avg inside a material balance is
+a modelling decision, not a wiring one) and a test pins both sides of that line
+across fourteen routes, so moving it has to be deliberate.
+
+The oil sensitivity needed physics rather than wiring: its future-Pres family
+recomputes J through a single Darcy record, which a composite does not have. It now
+rebuilds the composite at each future pressure with every active zone's Pr scaled
+by the same ratio — each zone keeping its own Darcy J with future μ·Bo at its scaled
+Pr, which is the single-layer rule applied per layer. Gas needed nothing: its
+collapse is exact.
+
+**Checkboxes never survived Save / Open.** The case collector skipped every checkbox —
+so the Active boxes would have reset on every Open, and **the lift-selection gates had
+been resetting on every Open since the day they were added.** Fixed for all of them.
+A case saved before 30 September stores no boxes, and every complete layer row in it
+*was* active; it reopens with every row that holds K, H and Pr ticked, rather than
+silently losing its third zone to the new defaults.
+
+**The ESP wear match no longer fails silently.** When the in-situ rate at the intake is
+past the end of the pump curve — almost always free gas — the theoretical ΔP is zero,
+wear came out −∞, JSON sent it as `null`, and the button threw while its text said
+"applied". It now answers with the reason: the in-situ rate, the curve's end, the
+free-gas fraction, nothing applied. Both wear buttons refuse to write a non-number.
+
+**Verified live, not just locally.** Every served file byte-identical to `d5984d0`, and
+five behaviours that exist only in today's server code answered from wellssim.app:
+an inactive zone left out and names returned, the one-zone stop, the ESP coupled
+solve on the zones, the gas-locked wear diagnosis, and the per-row SITHT source.
+**The deploy went through on the first attempt** from the cPanel Terminal — the
+server stayed on `main` after the 25 September repair.
+
+**Two traps this work hit, both worth knowing:**
+
+- **The dev server keeps `api.js` from startup.** Static files are read per request,
+  so after a server-side edit the page shows the new stamp while the API still runs
+  the old code — the browser check of the wear fix first showed the old behaviour for
+  exactly that reason. Restart the server after editing `src/server/` or `src/core/`.
+- **Bumping the test count with a global find-and-replace corrupts measured figures.**
+  `docs.test.js` makes every "N tests" claim track the suite, and replacing `\b354\b`
+  across the docs also rewrote the IP-separation blame count **26,354** (the digits
+  after a comma are a word boundary) and a dated "the suite is 348". Both restored by
+  this commit. Edit the count claims, not the number.
 
 ## 25 September — the gas Model column, and the prod table on a phone
 
@@ -55,7 +135,7 @@ the reservoir limit and the forecast seed; SITHP and gauge routes read the table
 Gp only and ignore the column. Verified in the browser: grey Pr on Model rows, a User
 row holding its values with no fill-down (GIIP 187.76 → 170.97 Bscf on the demo), the
 named error on a cleared Pr, and the column surviving a reload through the same
-serialisation Save/Open uses. Four new tests; the suite is 356.
+serialisation Save/Open uses. Four new tests; the suite is 348.
 
 **Then the table's view was fixed on both desktop and phone.** Three defects, only one
 of them new:
@@ -146,7 +226,7 @@ legal/IP separation. What was done, and what was **not**:
   reimplemented from those specs.
 - **Measured afterwards with `git blame`, not asserted.** `src/ui/export.js` went from
   **369/369** lines attributed to `aleimam` to **108/338**; `tests/export.test.js` from
-  140/140 to 56/178. Repo-wide the surviving share is **633 of 26,356 lines**, and 158
+  140/140 to 56/178. Repo-wide the surviving share is **633 of 26,354 lines**, and 158
   of those are generated `package-lock.json`. The residue is real and is mostly
   declarative: format tables, constant names and function signatures that the contract
   itself dictates. **Attribution by blame is not the same as copied expression**, and
