@@ -648,11 +648,18 @@ WGR 3.8/2.1/2.7).
 
 ### 5.2 Pres from SITHP
 
-Static shut-in surveys `Date | STHP | rate=0 | CGR | WGR`. Reservoir pressure comes
-from the **static gas march** (gas-head-only station march, geothermal temperatures,
-per-station explicit z, from the well-model data — validated to 1.2 % against the
-workbook's 7661.9 psi case). Gp comes from the prod-data cumulative — no IPR/VLP
-matching involved. Defaults: 2500 / 2000 / 1300 psi on the same dates.
+Static shut-in surveys `Date | STHP | SITHT | CGR | WGR` — there is no rate column,
+because a shut-in row is q = 0 by definition and the static march never reads a
+rate. Reservoir pressure comes from the **static gas march**: gas-head-only
+station march on the geothermal profile **from SITHT (the shut-in tubing-head
+temperature) at the wellhead to Tres at the perfs**, per-station explicit z on
+that line — so SITHT sets the density of the whole column, not just an average
+(validated to 1.2 % against the workbook's 7661.9 psi case, which runs at SITHT
+120 °F). A blank SITHT falls back to the well-model *Soil temp* and is shown grey,
+so the table always says what it ran on. Gp comes from the prod-data cumulative —
+no IPR/VLP matching involved. Defaults: 2500 / 2000 / 1300 psi on the same
+dates, SITHT blank (soil temp), which keeps this route's pressures equal to
+selection 4's gauge defaults so the two cross-check.
 The survey table takes **Paste from clipboard / Import CSV / +10 rows / Clear** and
 grows to the data, exactly like prod_data.
 
@@ -681,7 +688,7 @@ A survey dated outside the production record is flagged: its Gp is held at the
 nearest end, which biases the fit.
 Defaults: 3266.3 / 2607.1 / 1671.0 psi on the same three dates — *these are exactly
 what selection 2 computes from its own 2500 / 2000 / 1300 psi SITHP defaults*, so the
-two routes return the same 120.19 Bscf out of the box and can be cross-checked.
+two routes return the same 123.80 Bscf out of the box and can be cross-checked.
 The table takes **Paste from clipboard / Import CSV / +10 rows / Clear** and grows to
 the data, exactly like prod_data.
 

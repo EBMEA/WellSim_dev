@@ -300,6 +300,11 @@ export function staticPresFromSithp({ sithpPsi, surfTempF, cfg }) {
  * Marches SITHP at surface down to the static Pres at the perfs.
  */
 export function staticGasMarch(cfg, { sithpPsi, surfTempF }) {
+  // SITHT — the shut-in tubing-head temperature — is the WELLHEAD END of the
+  // geothermal profile: T runs linearly from it to Tres at the perfs, and
+  // every station's Z and gas density sit on that line. So it shapes the
+  // whole static column, not just an average. Blank falls back to the
+  // well-model soil temperature, and the caller is told which it was.
   const pc = gasPseudoCriticals({ gasSg: cfg.gasSg, n2: cfg.n2 ?? 0, co2: cfg.co2 ?? 0, h2s: cfg.h2s ?? 0, method: 'sour' });
   const path = { devStartM: cfg.devStartM ?? 0, devAngleDeg: cfg.devAngleDeg ?? 0 };
   const totTvdFt = cfg.perfTvdM * 3.281;
@@ -319,6 +324,8 @@ export function staticGasMarch(cfg, { sithpPsi, surfTempF }) {
     presPsi: p,
     zRes: zAtRes(cfg, p),
     gradientPsiFt: (p - sithpPsi) / totTvdFt,
+    surfTempF: t0,
+    surfTempSource: surfTempF != null ? 'input' : 'default',
     stations,
   };
 }
@@ -346,6 +353,10 @@ export function sithpReserve(cfg, sithpRows, prodRows) {
       tDays,
       dtDays: tDays - t0,
       sithpPsi: r.sithpPsi,
+      // the SITHT the march used, and whether the row typed it — the UI
+      // greys a defaulted one so the analyst can see what the column ran on
+      surfTempF: s.surfTempF,
+      surfTempSource: s.surfTempSource,
       presPsi: s.presPsi,
       z: s.zRes,
       pOverZ: s.presPsi / s.zRes,

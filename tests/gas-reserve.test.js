@@ -8,6 +8,7 @@ import {
   gasPresSolver,
   giipFromPz,
   staticPresFromSithp,
+  staticGasMarch,
   presFromPz,
   gasForecast,
 } from '../src/core/reserve/gas-reserve.js';
@@ -208,6 +209,32 @@ test('SITHP route recovers a known tank via the static gas march (no IPR)', asyn
   close(r.fit.giipBscf, G, 1e-3);
   assert.equal(r.points.length, 3);
   close(r.points[1].gpBscf, 1.5, 1e-9); // Gp integration from rates only
+});
+
+// SITHT — the shut-in tubing-head temperature — is the wellhead end of the
+// geothermal profile the static march runs on. Added to the survey table on
+// 30 Sep 2026; the parameter itself is as old as the march.
+test('SITHT is the wellhead end of the static march\'s geothermal profile, and blank means soil temp', () => {
+  const cold = staticGasMarch(GASCFG, { sithpPsi: 2500, surfTempF: 60 });
+  const warm = staticGasMarch(GASCFG, { sithpPsi: 2500, surfTempF: 140 });
+  // the profile starts AT the typed SITHT and ends at Tres
+  close(cold.stations[0].tF, 60, 1e-12);
+  close(warm.stations[0].tF, 140, 1e-12);
+  close(cold.stations[cold.stations.length - 1].tF, GASCFG.tresF, 1e-9);
+  close(warm.stations[warm.stations.length - 1].tF, GASCFG.tresF, 1e-9);
+  // a warmer column is a lighter column: less gas head, lower static Pres
+  assert.ok(warm.presPsi < cold.presPsi, `warm ${warm.presPsi} should be below cold ${cold.presPsi}`);
+  // and it is not a small effect on a 2818 m gas column
+  assert.ok(cold.presPsi - warm.presPsi > 10);
+  // the march reports what it used
+  assert.equal(cold.surfTempSource, 'input');
+  assert.equal(cold.surfTempF, 60);
+  // blank -> the well-model soil temperature, and says so
+  const blank = staticGasMarch(GASCFG, { sithpPsi: 2500 });
+  assert.equal(blank.surfTempSource, 'default');
+  assert.equal(blank.surfTempF, GASCFG.soilTempF);
+  close(blank.stations[0].tF, GASCFG.soilTempF, 1e-12);
+  close(blank.presPsi, staticGasMarch(GASCFG, { sithpPsi: 2500, surfTempF: GASCFG.soilTempF }).presPsi, 1e-12);
 });
 
 test('static gas march agrees with the zero-rate correlation and the workbook', async () => {

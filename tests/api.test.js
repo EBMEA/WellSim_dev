@@ -292,7 +292,38 @@ test('gas reserve Model column: the reservoir limit honours a User row, the SITH
   assert.equal(sithp.error, undefined);
 });
 
+test('gas reserve SITHP route: the survey table carries SITHT per row, blank falls back to soil temp', () => {
+  const prodRows = [
+    { date: '0', thpPsi: '1625', qMMscfd: '14.137' }, { date: '90', thpPsi: '1625', qMMscfd: '13' },
+    { date: '180', thpPsi: '1625', qMMscfd: '12' },
+  ];
+  // no rate column any more: a static survey row is q = 0 by definition
+  const r = handlers['gas/reserve']({
+    ...GAS_FORM, presSource: 'sithp', prodRows,
+    sithpRows: [
+      { date: '0', sithpPsi: '2500' },
+      { date: '90', sithpPsi: '2000', surfTempF: '130' },
+      { date: '180', sithpPsi: '1300', surfTempF: '' },
+    ],
+  });
+  assert.equal(r.error, undefined);
+  assert.equal(r.rows.length, 3);
+  assert.equal(r.rows[0].surfTempSource, 'default');
+  assert.equal(r.rows[0].surfTempF, Number(GAS_FORM.soilTempF));
+  assert.equal(r.rows[1].surfTempSource, 'input');
+  assert.equal(r.rows[1].surfTempF, 130);
+  assert.equal(r.rows[2].surfTempSource, 'default');
+  // the typed SITHT moved the answer: the same row at soil temp reads higher
+  const atSoil = handlers['gas/reserve']({
+    ...GAS_FORM, presSource: 'sithp', prodRows,
+    sithpRows: [{ date: '0', sithpPsi: '2500' }, { date: '90', sithpPsi: '2000' }, { date: '180', sithpPsi: '1300' }],
+  });
+  assert.ok(atSoil.rows[1].presPsi > r.rows[1].presPsi, 'warmer head -> lighter column -> lower Pres');
+  assert.equal(atSoil.rows[0].presPsi, r.rows[0].presPsi, 'untouched rows unchanged');
+});
+
 test('gas reserve route 1: SITHP statics, no IPR needed', () => {
+
   const r = handlers['gas/reserve']({
     ...GAS_FORM,
     presSource: 'sithp',

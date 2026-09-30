@@ -183,7 +183,7 @@ pre.eq code { background: none; padding: 0; }
   <h1>WellSim Manual</h1>
   <p class="tag">Nodal analysis, minimum connected reserves, and production forecasting for oil &amp; gas wells &mdash; a web port of the field-proven M.&nbsp;El-Ashry Excel toolset, with the macros replaced by deterministic solvers and every formula pinned against the original workbook cells.</p>
   <div class="statusrow">
-    <span class="chip"><b>348</b> regression and security tests passing</span>
+    <span class="chip"><b>350</b> regression and security tests passing</span>
     <span class="chip"><b>43/43</b> sheet-parity sensitivities</span>
     <span class="chip">gas march <b>bit-exact</b> vs workbook</span>
     <span class="chip">port 3355 &middot; no runtime dependencies</span>
@@ -211,7 +211,7 @@ pre.eq code { background: none; padding: 0; }
 
 <h2 id="run">Run &amp; test</h2>
 <pre class="eq">node src/server/server.js               # serves http://localhost:3355
-npm test                                # 348 tests
+npm test                                # 350 tests
 node scripts/validation-sweep.mjs       # 43 module-vs-workbook sensitivity cases</pre>
 <p>The server uses only Node built-ins; the UI is plain HTML/JS (Plotly for charts). Documentation lives in the repo: <code>README.md</code>, <code>docs/user-guide.md</code>, <code>docs/equations.md</code>, <code>docs/deploy.md</code>. A standalone portable build (<code>WellSim.exe</code>, no install, cases saved beside the exe) is produced from this same source tree by <code>build.ps1</code>.</p>
 
@@ -326,11 +326,11 @@ node scripts/validation-sweep.mjs       # 43 module-vs-workbook sensitivity case
     <p>Per-row Pwf (input-or-march) &rarr; Pr = &radic;(1000q/J + Pwf&sup2;) &rarr; explicit Z &rarr; Gp trapezoid &rarr; p/Z vs Gp line &rarr; minimum connected GIIP.</p>
     <p><b>Model column</b> (per row): <b>Model</b> &mdash; the workbook&rsquo;s row: Pwf typed or marched from FTHP, Pr backed out of the IPR (a Pr left in the cell is replaced). <b>User</b> &mdash; type both Pwf and Pr, as from a build-up gauge on that date; no march, no IPR. Rows are independent &mdash; nothing fills down. A User row missing either value stops with that row named. The same rows feed the reservoir limit and the Forecast&rsquo;s start state.</p></div>
   <div class="selcard"><span class="n">2</span><h5>Pres from SITHP</h5>
-    <p>Static shut-in surveys; Pres by the static gas march (gas-head-only stations, geothermal T, per-station Z &mdash; 1.2% vs the workbook case). Gp from prod cumulative; no IPR/VLP.</p></div>
+    <p>Static shut-in surveys &mdash; <b>Date | STHP | SITHT | CGR | WGR</b>; no rate column, a shut-in row is q = 0 by definition. Pres by the static gas march: gas-head-only stations on the geothermal profile <b>from SITHT at the head to Tres at the perfs</b>, per-station Z on that line &mdash; so the shut-in head temperature shapes the whole column, not an average (1.2% vs the workbook case). SITHT blank = the well-model soil temp, shown grey. Gp from prod cumulative; no IPR/VLP.</p></div>
   <div class="selcard"><span class="n">3</span><h5>Reservoir limit</h5>
     <p>GIIP = q&#772;/(Ct&middot;m)/1000. Defaults Sg 0.85 / So 0 / Sw 0.15; Cg grey = from two Bg points; slim table + Pwf-decline chart.</p></div>
   <div class="selcard"><span class="n">4</span><h5>Pres from memory gauges</h5>
-    <p>Measured static Pr &mdash; no march, no IPR: the gauge reading IS the datum. Inputs <b>Date | Pr</b>; calculated <b>z | Gp | p/Z</b>. Each reading must be a stabilized build-up corrected to datum. Defaults are the pressures selection 2 computes, so the two routes cross-check (both 120.19 Bscf).</p></div>
+    <p>Measured static Pr &mdash; no march, no IPR: the gauge reading IS the datum. Inputs <b>Date | Pr</b>; calculated <b>z | Gp | p/Z</b>. Each reading must be a stabilized build-up corrected to datum. Defaults are the pressures selection 2 computes, so the two routes cross-check (both 123.80 Bscf).</p></div>
 </div>
 
 <h2 id="oil-forecast"><span class="sect">Oil</span> &mdash; Forecast (Tarner | Walsh)</h2>
@@ -450,7 +450,7 @@ get_Pwf: any blank test/production Pwf is marched from its FTHP at its own rate 
 GAS — p/Z (selections 1 &amp; 2):
   Pr per row (closed form) → Z → Gp trapezoid → least-squares p/Z vs G_p,tot
   GIIP [Bscf] = −(p/Z)ᵢ / slope                      (minimum connected, total-gas basis)
-  SITHP statics: gas-head-only station march, geothermal T, per-station Z
+  SITHP statics: gas-head-only station march, geothermal T from SITHT at the head to Tres, per-station Z
   survey routes read N_p,c off the prod-table timeline, same clock as Gp
 GAS &amp; OIL — reservoir limit (selection 3):
   m = −slope(Pwf vs t) over ALL rows

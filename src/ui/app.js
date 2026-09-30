@@ -390,10 +390,13 @@ const MAX_PROD_ROWS = 200; // max permitted rows — inputs end where data ends
 let gasProdCount = GAS_PROD_DEFAULTS.length;
 // static surveys in the prod_data structure (user-supplied defaults):
 // Date | STHP | Gas rate = 0 | CGR | WGR
+// SITHT blank on the demo rows: it falls back to the well-model soil temp
+// (90 °F, shown grey), which keeps route 2's defaults equal to route 4's
+// gauge pressures so the two still cross-check out of the box.
 const GAS_SITHP_ROWS = [
-  { date: '17-Nov-14', sithpPsi: 2500, qMMscfd: 0, cgrStbMMscf: 57, wgrStbMMscf: 2.1 },
-  { date: '17-Nov-19', sithpPsi: 2000, qMMscfd: 0, cgrStbMMscf: 40, wgrStbMMscf: 2.1 },
-  { date: '26-Nov-24', sithpPsi: 1300, qMMscfd: 0, cgrStbMMscf: 20, wgrStbMMscf: 2.1 },
+  { date: '17-Nov-14', sithpPsi: 2500, cgrStbMMscf: 57, wgrStbMMscf: 2.1 },
+  { date: '17-Nov-19', sithpPsi: 2000, cgrStbMMscf: 40, wgrStbMMscf: 2.1 },
+  { date: '26-Nov-24', sithpPsi: 1300, cgrStbMMscf: 20, wgrStbMMscf: 2.1 },
   {},
 ];
 // reservoir limit — the workbook's green cells (Ct = Cg·Sg + Co·So + Cw·Sw + Cf)
@@ -755,14 +758,19 @@ const GAS_GAUGE_COLS = [
   { key: 'gpBscf', label: 'Gp Bscf', out: true },
   { key: 'pOverZ', label: 'p/Z psi', out: true },
 ];
+// Static shut-in surveys. There is no rate column: every row of a static
+// survey is q = 0 by definition, and the server never read it (the static
+// march is gas-head only). SITHT — the shut-in tubing-head temperature — is
+// the wellhead end of the geothermal profile the march runs on; blank falls
+// back to the well-model soil temp and is shown grey (30 Sep 2026).
 const SITHP_COLS = [
   { key: 'date', label: 'Date dd-MMM-yy' },
   { key: 'sithpPsi', label: 'STHP psi' },
-  { key: 'qMMscfd', label: 'Gas rate (0)' },
+  { key: 'surfTempF', label: 'SITHT °F' },
   { key: 'cgrStbMMscf', label: 'CGR' },
   { key: 'wgrStbMMscf', label: 'WGR' },
   { key: 'dtDays', label: 'dt d', out: true },
-  { key: 'presPsi', label: 'pr', out: true },
+  { key: 'presPsi', label: 'Pr psi', out: true },
   { key: 'z', label: 'z', out: true },
 ];
 
@@ -3100,6 +3108,8 @@ async function gasReserveRun() {
     r.rows.forEach((row, k) => {
       const i = sIdx[k];
       if (i == null) return;
+      // a blank SITHT ran on the soil temperature: show which, in grey
+      if (row.surfTempSource === 'default') setComputed(`gas-sithp-${i}-surfTempF`, row.surfTempF, 0);
       setOut(`gas-sithp-${i}-dtDays`, row.dtDays, 2);
       setOut(`gas-sithp-${i}-presPsi`, row.presPsi, 1);
       setOut(`gas-sithp-${i}-z`, row.z, 4);

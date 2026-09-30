@@ -341,9 +341,10 @@ GIIP [Bscf] = −(p/Z)ᵢ / slope        (minimum connected gas)
 ```
 
 **Selection 2 — SITHP statics:** static gas march from SITHP down —
-gas-head-only station march on the well-model grid, geothermal temperatures,
-per-station explicit Z (validated 1.2 % vs the workbook's Cullender–Smith 7661.9 psi
-case). Gp and the condensate cumulative from the prod-table timeline; then the same
+gas-head-only station march on the well-model grid, geothermal temperatures linear
+in TVD from SITHT at the wellhead to Tres at the perfs (blank SITHT = the
+well-model soil temperature), per-station explicit Z on that profile (validated
+1.2 % vs the workbook's Cullender–Smith 7661.9 psi case at SITHT 120 °F). Gp and the condensate cumulative from the prod-table timeline; then the same
 p/Z-vs-Gp_tot fit on the survey points.
 
 **Selection 3 — reservoir limit (verbatim):**

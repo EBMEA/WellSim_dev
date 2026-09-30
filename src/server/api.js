@@ -1379,7 +1379,7 @@ function gasReserveInner(f) {
   const sithp = (f.sithpRows ?? [])
     .filter((r) => num(r.sithpPsi) != null)
     .map((r) => {
-      const s = staticPresFromSithp({ sithpPsi: num(r.sithpPsi), surfTempF: num(r.surfTempF) ?? 60, cfg });
+      const s = staticPresFromSithp({ sithpPsi: num(r.sithpPsi), surfTempF: num(r.surfTempF) ?? cfg.soilTempF ?? 60, cfg });
       const gp = num(r.date) != null ? interpGp(solved, num(r.date)) : null;
       return { tDays: num(r.date), presPsi: s.presPsi, z: s.zRes, pOverZ: s.presPsi / s.zRes, gpBscf: gp, gradientPsiFt: s.gradientPsiFt };
     });

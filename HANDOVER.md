@@ -7,7 +7,7 @@ shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `f9881
 **Codex comparison:** https://bldrz.net
 
 **Where it stands, 25 September 2026.** `main` is at `f28fc23` (219 commits), working
-tree clean, **348/348 tests passing** and the sweep **43/43 PASS**. The live site and the
+tree clean, **350/350 tests passing** and the sweep **43/43 PASS**. The live site and the
 portable both carry that commit's application:
 
 | | commit | note |
@@ -55,7 +55,7 @@ the reservoir limit and the forecast seed; SITHP and gauge routes read the table
 Gp only and ignore the column. Verified in the browser: grey Pr on Model rows, a User
 row holding its values with no fill-down (GIIP 187.76 → 170.97 Bscf on the demo), the
 named error on a cleared Pr, and the column surviving a reload through the same
-serialisation Save/Open uses. Four new tests; the suite is 348.
+serialisation Save/Open uses. Four new tests; the suite is 350.
 
 **Then the table's view was fixed on both desktop and phone.** Three defects, only one
 of them new:
@@ -405,7 +405,7 @@ portable exe**. `esbuild` and `postject` are devDependencies of the portable
 build alone, so nothing the server needs is fetched at install time.
 
 ```bash
-npm test                          # 348 unit, regression and security tests
+npm test                          # 350 unit, regression and security tests
 node scripts/validation-sweep.mjs # 43 physics checks against analytic answers
 ```
 
