@@ -3,7 +3,7 @@
 **Build 2.7 — 9 September 2026**, from commit `8423d73` of the main project.
 Identical physics to what **https://wellssim.app** serves today (note the
 double s; the old single-s name was retired on 8 September 2026). The source is
-guarded by 350 tests and the 43/43 validation sweep, and this build itself
+guarded by 356 tests and the 43/43 validation sweep, and this build itself
 passed the **59/59 module smoke suite** with the exe as the only listener —
 every route in the API, both fluids, both lift types, the injector, the
 forecast, the artificial-lift screen and the account containment.
@@ -116,6 +116,17 @@ Changes in build 2.4 (7 Sep), kept for reference:
   Rows are independent — nothing fills down, since the usual case is one gauge
   on one date. A User row missing either value stops with the row named. The
   same rows feed the reservoir limit and the Forecast's start state.
+- **Multi-layer zones can be switched off and named** (30 Sep 2026): each
+  layer row on the oil and gas IPR blocks has an *Active* box and a *Zone*
+  name. Unticked, the zone leaves the composite entirely; at least two must
+  stay ticked. The rows start as Layer1…Layer4 with only the first two
+  ticked; names label the layers table and the IPR/VLP legend on every lift,
+  and a cleared name shows as Layer<row>. Checkboxes now survive Save / Open — they never did, which
+  also silently reset the lift-selection gates on every Open. And the layers
+  now reach every well-model route — the ESP coupled solve, the gas-lift
+  curve, the sensitivities and the head / ESP matches had each built their own
+  single-layer IPR and ignored the block. Reserve and forecast stay
+  single-layer by design.
 - **Every grid table scrolls sideways inside its own box** — the reserve prod
   tables, surveys, multi-rate tests, layers, pump curves and sensitivity sets,
   on any window narrower than the table. On a phone the card itself no longer
@@ -494,7 +505,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 (First time: `npm install --save-dev esbuild postject` with Node on PATH.)
 The physics is identical to the main project — after `npm install`, `node --test`
-runs the same 350 tests against this copy.
+runs the same 356 tests against this copy.
 
 ## Code signing
 

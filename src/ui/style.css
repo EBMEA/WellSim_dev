@@ -199,6 +199,13 @@ tr.thrust-up input { background: #FBE9E7 !important; }
 .gridscroll .sens th { white-space: nowrap; }
 .gridscroll .sens td input { min-width: 62px; }
 .gridscroll .sens td select { min-width: 78px; }
+/* a checkbox cell (the multi-layer Active column) must not inherit the
+   input floors above, or it stretches to a 62px box */
+.sens td input[type=checkbox], .gridscroll .sens td input[type=checkbox] {
+  min-width: 0; width: 18px; height: 18px; min-height: 0; margin: 6px auto; display: block; padding: 0;
+}
+.sens .col-active { width: 44px; text-align: center; }
+.sens .col-name input { min-width: 80px; }
 #oil-prod-table .col-date input { min-width: 104px; }
 #oil-prod-table .col-gorScfStb input, #oil-prod-table .col-injMMscfd input { min-width: 72px; }
 #oil-prod-table .col-wcPct input, #oil-prod-table .col-espHz input,

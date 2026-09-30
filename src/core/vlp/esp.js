@@ -411,7 +411,10 @@ export function matchWearAndPi(cfg, ipr, pump, {
     priPsi: ipr.prPsi, // Pres constant — the working reservoir pressure
     pbPsi: ipr.pbPsi,
   });
-  return { wearFactor, dpMeasPsi: dpMeas, dpTheoPsi: dpTheo, pwfTargetPsi: pwfTarget, jMatched, freeGasPct: state.freeGasPct };
+  return {
+    wearFactor, dpMeasPsi: dpMeas, dpTheoPsi: dpTheo, pwfTargetPsi: pwfTarget, jMatched,
+    freeGasPct: state.freeGasPct, qGrossPumpBpd: state.qGrossPumpBpd,
+  };
 }
 
 /**

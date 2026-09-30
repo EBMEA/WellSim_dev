@@ -322,7 +322,19 @@ const GAS_DARCY_FIELDS = [
 
 // optional multi-layer Darcy IPR (training deck 4) — Re/Rw (and Pb, oil)
 // shared from the single-layer inputs; per-layer K/H/skin/Pr + fluids
+// Multi-layer rows (30 Sep 2026): an Active box per zone — unticked, the row is
+// left out of the composite entirely, whatever it holds, and the rule becomes
+// "at least 2 ACTIVE layers" — and a Zone name. The defaults name the rows
+// Layer1..Layer4 (editable) and tick only the first two, which are the two
+// the demo fills. A name cleared to blank falls back to Layer<row number>,
+// the row's OWN number, so names stay stable when a zone between them is
+// switched off.
+const ML_ZONE_COLS = [
+  { key: 'active', label: 'Active', checkbox: true, defaultChecked: true },
+  { key: 'name', label: 'Zone' },
+];
 const OIL_ML_COLS = [
+  ...ML_ZONE_COLS,
   { key: 'permMd', label: 'K mD' },
   { key: 'thicknessFt', label: 'H ft' },
   { key: 'skin', label: 'Skin' },
@@ -331,12 +343,13 @@ const OIL_ML_COLS = [
   { key: 'gorScfStb', label: 'GOR' },
 ];
 const OIL_ML_ROWS = [
-  { permMd: 50, thicknessFt: 42.653, skin: 0, prPsi: 3550, wcPct: 50, gorScfStb: 5000 },
-  { permMd: 20, thicknessFt: 30, skin: 0, prPsi: 3000, wcPct: 60, gorScfStb: 4000 },
-  {},
-  {},
+  { active: true, name: 'Layer1', permMd: 50, thicknessFt: 42.653, skin: 0, prPsi: 3550, wcPct: 50, gorScfStb: 5000 },
+  { active: true, name: 'Layer2', permMd: 20, thicknessFt: 30, skin: 0, prPsi: 3000, wcPct: 60, gorScfStb: 4000 },
+  { active: false, name: 'Layer3' },
+  { active: false, name: 'Layer4' },
 ];
 const GAS_ML_COLS = [
+  ...ML_ZONE_COLS,
   { key: 'permMd', label: 'K mD' },
   { key: 'thicknessFt', label: 'H ft' },
   { key: 'skin', label: 'Skin' },
@@ -345,10 +358,10 @@ const GAS_ML_COLS = [
   { key: 'wgrStbMMscf', label: 'WGR' },
 ];
 const GAS_ML_ROWS = [
-  { permMd: 5, thicknessFt: 80, skin: 0, prPsi: 3800, cgrStbMMscf: 57.4, wgrStbMMscf: 3.8 },
-  { permMd: 3, thicknessFt: 50, skin: 0, prPsi: 3300, cgrStbMMscf: 40, wgrStbMMscf: 2 },
-  {},
-  {},
+  { active: true, name: 'Layer1', permMd: 5, thicknessFt: 80, skin: 0, prPsi: 3800, cgrStbMMscf: 57.4, wgrStbMMscf: 3.8 },
+  { active: true, name: 'Layer2', permMd: 3, thicknessFt: 50, skin: 0, prPsi: 3300, cgrStbMMscf: 40, wgrStbMMscf: 2 },
+  { active: false, name: 'Layer3' },
+  { active: false, name: 'Layer4' },
 ];
 
 const GAS_CN_FIELDS = [
@@ -592,6 +605,8 @@ function renderGridTable(id, prefix, cols, rows) {
             .map((c) =>
               c.out
                 ? `<td class="col-${c.key}"><input id="${prefix}-${i}-${c.key}" class="outcell" readonly tabindex="-1" value="${r[c.key] ?? ''}"/></td>`
+                : c.checkbox
+                  ? `<td class="col-${c.key}"><input type="checkbox" id="${prefix}-${i}-${c.key}"${(r[c.key] ?? c.defaultChecked) ? ' checked' : ''}/></td>`
                 : c.select
                   ? `<td class="col-${c.key}"><select id="${prefix}-${i}-${c.key}">${c.select
                       .map(([v, l]) => `<option value="${v}"${(r[c.key] || c.defaultValue?.()) === v ? ' selected' : ''}>${l}</option>`)
@@ -702,7 +717,12 @@ function collectGrid(prefix, cols, n) {
   const out = [];
   for (let i = 0; i < n; i++) {
     const row = {};
-    for (const c of cols) if (!c.out) row[c.key] = formVal(`${prefix}-${i}-${c.key}`);
+    for (const c of cols) {
+      if (c.out) continue;
+      row[c.key] = c.checkbox
+        ? (document.getElementById(`${prefix}-${i}-${c.key}`)?.checked ?? true)
+        : formVal(`${prefix}-${i}-${c.key}`);
+    }
     out.push(row);
   }
   return out;
@@ -2409,8 +2429,9 @@ async function espRun() {
   // FINAL model-match charts: IPR vs the coupled ESP-VLP + wellhead curve
   plotNodal('oil-chart-nodal', 'Oil rate, stb/d', r.iprCurve, r.vlpCurve,
     { q: op.qOilStbD, pwfPsi: op.pwfTraversePsi },
-    (p) => p.qOilStbD, (p) => p.q);
-  renderTables('oil-table-nodal', [
+    (p) => p.qOilStbD, (p) => p.q,
+    { extra: mlLayerTraces(r, (p) => p.qOilStbD) });
+  const espTables = [
     {
       title: 'IPR', headers: ['Pwf psi', 'q oil', 'q gross'],
       rows: r.iprCurve.map((p) => [fmt(p.pwfPsi, 1), fmt(p.qOilStbD, 0), fmt(p.qGrossStbD, 0)]),
@@ -2419,7 +2440,25 @@ async function espRun() {
       title: 'ESP VLP', headers: ['q oil', 'Pwf psi'],
       rows: r.vlpCurve.map((p) => [fmt(p.q, 0), fmt(p.pwfPsi, 1)]),
     },
-  ]);
+  ];
+  // the coupled solve reports its layers at the operating point, the same
+  // table Solve well shows -- the ESP view ignored the block until 30 Sep 2026
+  if (r.multiLayer?.layersAtOp) {
+    const lay = r.multiLayer.layersAtOp.layers;
+    const props = r.multiLayer.curves?.layers ?? [];
+    const tot = r.multiLayer.layersAtOp.totals;
+    espTables.unshift({
+      title: `Layers @ operating Pwf ${fmt(op.pwfTraversePsi, 0)} psi (Pr avg ${fmt(r.multiLayer.prAvgPsi, 0)}, J final ${fmt(r.multiLayer.jFinal, 3)})`,
+      headers: ['layer', 'Pr psi', 'J', 'q gross', 'q oil', 'q water', '% of gross', 'state'],
+      rows: lay.map((l, i) => {
+        const xflow = l.qGrossStbD < 0;
+        const share = tot.qGrossStbD !== 0 ? (l.qGrossStbD / tot.qGrossStbD) * 100 : null;
+        return [l.name, fmt(props[i]?.prPsi, 0), fmt(props[i]?.j, 3), fmt(l.qGrossStbD, 0), fmt(l.qOilStbD, 0), fmt(l.qWaterStbD, 0),
+          share == null ? '—' : fmt(share, 1), xflow ? 'CROSSFLOW — taking fluid in' : 'producing'];
+      }),
+    });
+  }
+  renderTables('oil-table-nodal', espTables);
   plotWhp('oil-chart-whp', 'Oil rate, stb/d', r.whpCurve, Number(val('oil-thpPsi')));
   renderTables('oil-table-whp', [{
     title: 'Wellhead PQ & WHT (ESP)', headers: ['q oil', 'WHP psi', 'WHT °F', 'Pwf IPR', 'Pwf VLP'],
@@ -2617,6 +2656,7 @@ async function waterEspWearRun() {
   const r = await api('oil/espwear', waterForm());
   const el = document.getElementById('water-esp-result');
   if (r.error) { el.textContent = r.error; return; }
+  if (!Number.isFinite(r.wearFactor)) { el.textContent = 'Wear match returned no wear factor — nothing was applied.'; return; }
   el.textContent =
     `Wear match from actual Pint/Pdis (stages held at ${val('water-espStages')}):\n` +
     `ΔP actual = ${fmt(r.dpMeasPsi, 1)} psi vs theoretical ${fmt(r.dpTheoPsi, 1)} → wear = ${fmt(r.wearFactor, 4)} (applied to the wear input).\n` +
@@ -2626,6 +2666,10 @@ async function waterEspWearRun() {
 
 async function espWearRun() {
   const r = await api('oil/espwear', oilForm());
+  if (!Number.isFinite(r.wearFactor)) {
+    document.getElementById('oil-esp-result').textContent = 'Wear match returned no wear factor — nothing was applied.';
+    return;
+  }
   document.getElementById('oil-esp-result').textContent =
     `Wear match from actual Pint/Pdis:\n` +
     `\u0394P actual = ${fmt(r.dpMeasPsi, 1)} psi vs theoretical ${fmt(r.dpTheoPsi, 1)} \u2192 wear = ${fmt(r.wearFactor, 4)} (applied to the wear input).\n` +
@@ -2767,7 +2811,7 @@ async function liquidCalibrate(c) {
     txt +=
       `\n\nMulti-layer fit: J Jones @ PrAvg ${fmt(r.mlFit.prAvgPsi, 0)} psi = ${fmt(r.mlFit.jTestMl, 4)}; ` +
       `total J was ${fmt(r.mlFit.jFinal, 4)} → all layer K's scaled ×${fmt(r.mlFit.scale, 4)}:\n` +
-      r.mlFit.layers.map((l) => `L${l.idx + 1}: K ${fmt(l.kOld, 2)} → ${fmt(l.kNew, 3)} mD`).join('\n');
+      r.mlFit.layers.map((l) => `${l.name ?? `Layer${l.idx + 1}`}: K ${fmt(l.kOld, 2)} → ${fmt(l.kNew, 3)} mD`).join('\n');
     r.mlFit.layers.forEach((l) => {
       const el = document.getElementById(`${c.prefix}-ml-${l.idx}-permMd`);
       if (el) el.value = l.kNew.toFixed(4);
@@ -3436,7 +3480,7 @@ async function gasCalibrate() {
     document.getElementById('gas-cal-result').textContent +=
       `\nMulti-layer fit: J test @ PrAvg ${fmt(r.mlFit.prAvgPsi, 0)} psi = ${r.mlFit.jTestMl.toExponential(4)}; ` +
       `total J was ${r.mlFit.jFinal.toExponential(4)} → all layer K's scaled ×${fmt(r.mlFit.scale, 4)}:\n` +
-      r.mlFit.layers.map((l) => `L${l.idx + 1}: K ${fmt(l.kOld, 2)} → ${fmt(l.kNew, 3)} mD`).join('\n');
+      r.mlFit.layers.map((l) => `${l.name ?? `Layer${l.idx + 1}`}: K ${fmt(l.kOld, 2)} → ${fmt(l.kNew, 3)} mD`).join('\n');
     r.mlFit.layers.forEach((l) => {
       const el = document.getElementById(`gas-ml-${l.idx}-permMd`);
       if (el) el.value = l.kNew.toFixed(4);
@@ -3540,7 +3584,13 @@ function collectCase() {
     radios: {},
     selects: {},
     grids: { gasProd: readProdValues(), oilProd: readOilProdValues() },
+    // checkboxes by id (the multi-layer Active boxes, the lift-selection
+    // gates). Skipped until 30 Sep 2026, so none of them survived Save/Open.
+    checks: {},
   };
+  document.querySelectorAll('main input[type=checkbox][id]').forEach((el) => {
+    c.checks[el.id] = el.checked;
+  });
   document.querySelectorAll('main input[id], main select[id]').forEach((el) => {
     if (el.type === 'radio' || el.type === 'checkbox' || el.type === 'file') return;
     if (el.tagName === 'SELECT') { c.selects[el.id] = el.value; return; }
@@ -3580,6 +3630,11 @@ function applyCase(c) {
     const el = document.getElementById(id);
     if (el) el.value = v;
   }
+  // a case saved before checks existed leaves every box at its default
+  for (const [id, v] of Object.entries(c.checks ?? {})) {
+    const el = document.getElementById(id);
+    if (el && el.type === 'checkbox') el.checked = Boolean(v);
+  }
   for (const [id, v] of Object.entries(c.inputs ?? {})) {
     const el = document.getElementById(id);
     if (el) {
@@ -3591,6 +3646,15 @@ function applyCase(c) {
   for (const id of c.computed ?? []) {
     const el = document.getElementById(id);
     if (el) { el.value = ''; delete el.dataset.computed; el.classList.remove('computed'); }
+  }
+  if (!c.checks) {
+    for (const p of ['oil', 'gas']) {
+      for (let i = 0; i < 4; i++) {
+        const box = document.getElementById(`${p}-ml-${i}-active`);
+        const filled = ['permMd', 'thicknessFt', 'prPsi'].every((k) => String(c.inputs?.[`${p}-ml-${i}-${k}`] ?? '').trim() !== '');
+        if (box && filled) box.checked = true;
+      }
+    }
   }
   // the Model selects were re-applied above, after the grid rendered: the
   // lift columns follow whatever the restored case actually asks for

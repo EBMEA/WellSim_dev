@@ -122,6 +122,23 @@ test('wear match on the actual Pint/Pdis couple: wear applied, PI is QC only', (
   assert.ok(r.matchedPermMd > 0, 'QC matched K reported');
 });
 
+test('wear match on a pump that gives no head: a diagnosis, never -Infinity', () => {
+  // the ESP well on the natural-flow demo's fluids (GOR 5000, WC 50): ~78 %
+  // free gas at intake puts the in-situ rate past the end of the curve, the
+  // theoretical dP is 0, and 1 - 1328/0 used to reach the UI as null
+  const r = handlers['oil/espwear']({ ...ESP_WB, gorScfStb: '5000', wcPct: '50', rsiScfStb: '700' });
+  assert.equal(r.status, 'no-head');
+  assert.match(r.error, /delivers no head/);
+  assert.match(r.error, /nothing was applied/);
+  assert.match(r.error, /free gas at intake/);
+  assert.equal(r.wearFactor, undefined, 'no wear factor is reported at all');
+  // and the normal case is untouched
+  const ok = handlers['oil/espwear'](ESP_WB);
+  assert.ok(!ok.error, ok.error);
+  assert.ok(Number.isFinite(ok.wearFactor));
+  assert.ok(ok.qGrossPumpBpd > 0, 'the in-situ pump rate is reported');
+});
+
 test('ESP Pres sensitivity still runs on a PI-typed well (matched K feeds future J)', () => {
   const r = handlers['oil/espsens'](ESP_WB);
   assert.ok(!r.error, r.error);

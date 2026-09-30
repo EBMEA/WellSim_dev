@@ -319,7 +319,11 @@ inputs are required; there is no input THT.
    wear input; the **implied PI and matched K are reported as QC only and
    never written to your inputs** (PI stays user judgment, like Pres). On
    the demo's actual gauges the QC recovers the workbook's PI input:
-   2.698 vs 2.7.
+   2.698 vs 2.7. If the pump **gives no head at the measured intake** — the
+   in-situ rate is past the end of its curve, almost always from free gas —
+   no wear factor can explain the measurement: the match says so, with the
+   in-situ rate, the curve's end and the free-gas fraction, and applies
+   nothing.
    **Two ESP views** (radio under the ESP inputs). *Model match* draws the
    final charts — IPR vs the coupled ESP-VLP nodal plot, wellhead PQ & WHT,
    the PumpCurve with the results block beside it, and the Traverse on its own
@@ -345,9 +349,40 @@ inputs are required; there is no input THT.
 ### Multi-layer IPR (optional, oil & gas well models)
 
 A **Layers** selector (Single layer default | Multi-layer) sits under the well
-inputs (oil) / inside the Darcy IPR block (gas). Each layer row takes its own
+inputs (oil) / inside the Darcy IPR block (gas). Each layer row starts with an
+**Active** box and a **Zone** name, then takes its own
 **K, H, skin, Pr** — Re/Rw (and Pb for oil) are shared from the single-layer
-inputs — plus per-layer WC/GOR (oil) or CGR/WGR (gas), blank = base. Each
+inputs — plus per-layer WC/GOR (oil) or CGR/WGR (gas), blank = base.
+
+- **Active** — unticked, the zone is left out of the composite entirely,
+  whatever its cells hold; nothing about it enters Pr avg, J final, the
+  blended ratios or the layers table. At least **2 zones must be active**;
+  fewer stops with that message. Use it to test "what if this zone were
+  isolated" without retyping the row.
+- **Zone** — the rows start as **Layer1 … Layer4**; type any name over them.
+  It labels the layer in the *Layers @ operating Pwf* table and in the IPR/VLP
+  chart legend — on *Solve well* for every lift, including the ESP catalogue
+  view. A name cleared to blank shows as Layer1, Layer2… by **row number**,
+  so the names of the remaining zones do not shift when one between them is
+  switched off.
+- **Defaults:** only the first two rows are active — the two the demo fills.
+  Tick row 3 or 4 once you have given it K, H and Pr. A case saved before
+  30 Sep 2026 reopens with every row that holds K, H and Pr active, exactly
+  as it solved when it was saved.
+
+Both survive Save / Open. (Checkboxes never did until 30 Sep 2026 — the
+same fix restored the lift-selection gates.)
+
+**Where the layers apply.** Every route on the well-model tab solves on the
+composite: *Solve well* on natural flow, gas lift and ESP (manual ΔP or a
+catalogue pump), *Calibrate*, the gas-lift performance curve, the
+sensitivities, and the head / stages / wear / separator matches. Until
+30 Sep 2026 only *Solve well* and *Calibrate* did — the others built a
+single-layer IPR of their own and ignored the block, so switching an ESP well
+to a catalogue pump silently switched its reservoir model off. The
+**reserve and forecast** modules stay single-layer on purpose: they take one
+calibrated J and a Pr history, and a multi-layer Pr avg inside a material
+balance is a modelling decision, not a wiring one. Each
 layer's Darcy J is evaluated with its own μ·B (oil) / μ·z (gas) at the
 *layer's* Pr. The layers collapse to **one final J** (training deck 4): oil
 via the theoretical average pressure (Pwf at which the commingled rate is

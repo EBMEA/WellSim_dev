@@ -259,17 +259,28 @@ function buildOilIpr(f, cfg, pb) {
  *  K/H/skin/Pr with Re/Rw (and Pb for oil) shared from the single-layer
  *  inputs; fluid ratios blank = base. Each layer's Darcy J takes its own
  *  mu*B (oil) / mu*z (gas) at the LAYER's Pr. */
+/** The layer rows the composite is built from: complete (K, H, Pr) AND
+ *  active. The Active box arrived 30 Sep 2026; a row without the field is
+ *  active, so older cases and every fixture solve as before. Each row keeps
+ *  its ORIGINAL index for its fallback name and for the K write-back. */
+const layerActive = (r) => !(r.active === false || r.active === 'false' || r.active === 0 || r.active === '0');
+function activeLayerRows(f) {
+  return (f.mlLayers ?? [])
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => layerActive(r) && num(r.permMd) != null && num(r.thicknessFt) != null && num(r.prPsi) != null);
+}
+const layerName = (r, i) => (r.name != null && String(r.name).trim() !== '' ? String(r.name).trim() : `Layer${i + 1}`);
+const ML_MIN_ERROR = 'multi-layer needs at least 2 ACTIVE layers (K, H and Pr on each, box ticked)';
+
 function oilMultiLayer(f, cfg, pb) {
   if (f.mlMode !== 'multi') return null;
   const pvt = oilPvtBundle(cfg, pb);
-  const rows = (f.mlLayers ?? []).filter(
-    (r) => num(r.permMd) != null && num(r.thicknessFt) != null && num(r.prPsi) != null
-  );
-  if (rows.length < 2) return { error: 'multi-layer needs at least 2 layers (K, H and Pr on each row)' };
-  const layers = rows.map((r, i) => {
+  const rows = activeLayerRows(f);
+  if (rows.length < 2) return { error: ML_MIN_ERROR };
+  const layers = rows.map(({ r, i }) => {
     const pr = num(r.prPsi);
     return {
-      name: `L${i + 1}`,
+      name: layerName(r, i),
       jDarcy: jDarcyOil({
         permMd: num(r.permMd),
         thicknessFt: num(r.thicknessFt),
@@ -291,15 +302,13 @@ function oilMultiLayer(f, cfg, pb) {
 
 function gasMultiLayer(f, cfg) {
   if (f.mlMode !== 'multi' || f.iprMode === 'cn') return null;
-  const rows = (f.mlLayers ?? []).filter(
-    (r) => num(r.permMd) != null && num(r.thicknessFt) != null && num(r.prPsi) != null
-  );
-  if (rows.length < 2) return { error: 'multi-layer needs at least 2 layers (K, H and Pr on each row)' };
-  const layers = rows.map((r, i) => {
+  const rows = activeLayerRows(f);
+  if (rows.length < 2) return { error: ML_MIN_ERROR };
+  const layers = rows.map(({ r, i }) => {
     const pr = num(r.prPsi);
     const p = gasPvt({ gasSg: cfg.gasSg, n2: cfg.n2, co2: cfg.co2, h2s: cfg.h2s, method: 'sour' }, pr, cfg.tresF);
     return {
-      name: `L${i + 1}`,
+      name: layerName(r, i),
       jDarcy: jDarcyGas({
         permMd: num(r.permMd),
         thicknessFt: num(r.thicknessFt),
@@ -318,6 +327,42 @@ function gasMultiLayer(f, cfg) {
   });
   return { inflow: createGasInflow({ multiLayer: { layers } }) };
 }
+
+/** The inflow the WELL-MODEL routes solve on — the multi-layer composite when
+ *  the Layers block is active, the single-layer IPR otherwise — and the config
+ *  whose fluids the marches run with (the blended ratios under multi-layer).
+ *
+ *  Until 30 Sep 2026 only Solve well and Calibrate built the composite. The
+ *  ESP coupled solve, the gas-lift performance curve, the sensitivities and
+ *  the head / ESP matches each built a single-layer IPR of their own and
+ *  silently ignored the layers -- so switching an ESP well to a catalogue
+ *  pump switched its reservoir model off. Every well-model route goes
+ *  through here now.
+ *
+ *  The RESERVE and FORECAST routes deliberately do not: they take one
+ *  calibrated J and a Pr history, and a multi-layer Pr avg inside a material
+ *  balance is a modelling question, not a wiring one. */
+function oilWellModel(f, cfg0, pb) {
+  const ml = oilMultiLayer(f, cfg0, pb);
+  if (ml?.error) return ml;
+  const inflow = ml?.inflow ?? null;
+  return {
+    inflow,
+    ipr: inflow ? inflow.ipr : buildOilIpr(f, cfg0, pb),
+    cfg: inflow ? applyInflowFluids(cfg0, inflow) : cfg0,
+  };
+}
+function gasWellModel(f, cfg0) {
+  const ml = gasMultiLayer(f, cfg0);
+  if (ml?.error) return ml;
+  const inflow = ml?.inflow ?? null;
+  const ipr = inflow ? inflow.ipr : buildGasIpr(f, cfg0);
+  if (ipr.error) return ipr;
+  return { inflow, ipr, cfg: inflow ? applyInflowFluids(cfg0, inflow) : cfg0 };
+}
+/** What a route that solved on the composite reports about it. */
+const mlSummary = (inflow) =>
+  inflow ? { prAvgPsi: inflow.prAvgPsi, jFinal: inflow.ipr.j, blended: inflow.blended, warnings: inflow.warnings } : null;
 
 /** Pump-curve family (30-60 Hz) + the down-thrust/BEP/up-thrust envelope,
  *  the data behind the PumpCurve chart. Shared by the oil ESP view and the
@@ -502,10 +547,7 @@ export function oilCalibrate(f) {
       prAvgPsi: inflow.prAvgPsi,
       testPwfPsi: pwfMl,
       pwfSource: pwfSourceMl,
-      layers: (f.mlLayers ?? [])
-        .map((r, i) => ({ r, i }))
-        .filter(({ r }) => num(r.permMd) != null && num(r.thicknessFt) != null && num(r.prPsi) != null)
-        .map(({ r, i }) => ({ idx: i, kOld: num(r.permMd), kNew: num(r.permMd) * scale })),
+      layers: activeLayerRows(f).map(({ r, i }) => ({ idx: i, name: layerName(r, i), kOld: num(r.permMd), kNew: num(r.permMd) * scale })),
     };
   }
   return {
@@ -559,8 +601,15 @@ function headResult(mode, m, extra) {
 }
 const NOT_A_MEASUREMENT = 'a measured Test Pwf (typed — a grey get-Pwf value is not a measurement)';
 
+/** A head match answers with which reservoir model it matched on. */
+const withMl = (r, inflow) => (r && !r.error ? { ...r, multiLayer: mlSummary(inflow) } : r);
 export function oilMatchHead(f) {
-  const cfg = buildOilCfg(f);
+  const cfg0 = buildOilCfg(f);
+  const wm = oilWellModel(f, cfg0, oilPb(f, cfg0));
+  if (wm.error) return wm;
+  return withMl(oilMatchHeadInner(f, wm.cfg), wm.inflow);
+}
+function oilMatchHeadInner(f, cfg) {
   const fr = frictionHeld(f);
   if (fr.error) return fr;
   const q = num(f.testQOilStbD);
@@ -634,7 +683,12 @@ export function waterInjMatchHead(f) {
 }
 
 export function gasMatchHead(f) {
-  const cfg = buildGasCfg(f);
+  const cfg0 = buildGasCfg(f);
+  const wm = gasWellModel(f, cfg0);
+  if (wm.error) return wm;
+  return withMl(gasMatchHeadInner(f, wm.cfg), wm.inflow);
+}
+function gasMatchHeadInner(f, cfg) {
   const fr = frictionHeld(f);
   if (fr.error) return fr;
   const first = (f.testPoints ?? [])[0];
@@ -654,9 +708,11 @@ export function gasMatchHead(f) {
 }
 
 export function oilSensitivity(f) {
-  const cfg = buildOilCfg(f);
-  const pb = oilPb(f, cfg);
-  const ipr = buildOilIpr(f, cfg, pb);
+  const cfg0 = buildOilCfg(f);
+  const pb = oilPb(f, cfg0);
+  const wm = oilWellModel(f, cfg0, pb);
+  if (wm.error) return wm;
+  const { cfg, ipr, inflow } = wm;
   const pvt = oilPvtBundle(cfg, pb);
   const water = cfg.fluid === 'water';
   const oilFrac = water ? 1 : 1 - cfg.wcPct / 100;
@@ -677,10 +733,31 @@ export function oilSensitivity(f) {
     return { label: s.label || `VLP${i + 1}`, overrides: o };
   });
   const presList = (f.presList ?? []).map(num).filter((p) => p != null && p > 0);
+  const futureList = presList.length ? presList : [0.75, 0.5, 0.25].map((x) => ipr.prPsi * x);
+  // multi-layer: the equivalent IPR has no single Darcy record, so the future
+  // family is the COMPOSITE rebuilt at each future pressure with every active
+  // zone's Pr scaled by the same ratio -- each zone keeps its own Darcy J with
+  // future mu*Bo at ITS scaled Pr, which is oilIprSensitivity's rule applied
+  // per layer. The blended water cut at that state converts gross to oil.
+  const mlCompositeAt = (p) => {
+    const ratio = p / inflow.prAvgPsi;
+    const fS = { ...f, mlLayers: (f.mlLayers ?? []).map((r) => (num(r.prPsi) != null ? { ...r, prPsi: num(r.prPsi) * ratio } : r)) };
+    return oilMultiLayer(fS, cfg0, pb)?.inflow ?? null;
+  };
   // water well: mu_w and Bw do not change with pressure, so the future J IS
   // the current J — no futureOilJ chain (that chain is oil PVT)
-  const futureIprs = water
-    ? (presList.length ? presList : [0.75, 0.5, 0.25].map((x) => ipr.prPsi * x)).map((p, i) => ({
+  const futureIprs = inflow
+    ? futureList.map((p, i) => {
+        const inf = mlCompositeAt(p);
+        return {
+          label: `Pres${i + 1}=${Math.round(p)} psi`,
+          presPsi: p,
+          j: inf?.ipr.j ?? null,
+          curve: inf ? iprCurve(inf.ipr, { wcPct: inf.blended.wcPct }) : [],
+        };
+      })
+    : water
+    ? futureList.map((p, i) => ({
         label: `Pres${i + 1}=${Math.round(p)} psi`,
         presPsi: p,
         j: ipr.j,
@@ -694,7 +771,9 @@ export function oilSensitivity(f) {
   // solved against it, so it has to be on the chart
   const iprFamily = [
     ...referenceIprs(ipr, (p) =>
-      water
+      inflow
+        ? iprCurve(ipr, { wcPct: cfg.wcPct })
+        : water
         ? iprCurve(withCurrentPr(ipr, p), { wcPct: 0 })
         : oilIprSensitivity(ipr, pvt, { presList: [p], wcPct: cfg.wcPct })[0].curve
     ),
@@ -761,10 +840,12 @@ export function oilSensitivity(f) {
       // node as the intersection of two drawn curves rather than a floating
       // marker.
       if (!water && marchOv.wcPct != null && Math.abs(marchOv.wcPct - cfg.wcPct) > 1e-9) {
-        m.iprCurve = oilIprSensitivity(ipr, pvt, {
-          presList: [ipr.prPsi],
-          wcPct: setCfg.wcPct,
-        })[0].curve;
+        m.iprCurve = inflow
+          ? iprCurve(ipr, { wcPct: setCfg.wcPct })
+          : oilIprSensitivity(ipr, pvt, {
+              presList: [ipr.prPsi],
+              wcPct: setCfg.wcPct,
+            })[0].curve;
       }
       if (solve) {
         const cfgAt = { ...setCfg, esp: { ...setCfg.esp, pumpDpPsi: solve.dpPsi, tubingGasScfD: solve.tubingGasScfD } };
@@ -817,6 +898,7 @@ export function oilSensitivity(f) {
     // the sensitivity chart tops its pressure axis at the initial reservoir
     // pressure: nothing in a producing system can sit above it
     priPsi: ipr.priPsi ?? ipr.prPsi,
+    multiLayer: mlSummary(inflow),
   };
 }
 
@@ -888,9 +970,11 @@ export function oilGasLift(f) {
     return { error: 'switch the lift type to Gas lift to run the performance curve' };
   if (num(f.injDepthTvdM) == null)
     return { error: 'gas-lift performance needs the injection depth (mTVD)' };
-  const cfg = buildOilCfg(f);
-  const pb = oilPb(f, cfg);
-  const ipr = buildOilIpr(f, cfg, pb);
+  const cfg0 = buildOilCfg(f);
+  const pb = oilPb(f, cfg0);
+  const wm = oilWellModel(f, cfg0, pb);
+  if (wm.error) return wm;
+  const { cfg, ipr, inflow } = wm;
   const max = num(f.injMaxMMscfd) ?? 2;
   const steps = Math.min(Math.max(Math.round(num(f.injSteps) ?? 10), 2), 25);
   const injRates = Array.from({ length: steps + 1 }, (_, i) => (max * i) / steps);
@@ -898,6 +982,7 @@ export function oilGasLift(f) {
   return {
     ...r,
     currentInjMMscfd: cfg.gasLift.injRateMMscfd,
+    multiLayer: mlSummary(inflow),
   };
 }
 
@@ -1101,10 +1186,7 @@ export function gasCalibrate(f) {
       scale,
       prAvgPsi: inflow.prAvgPsi,
       points: pointsMl,
-      layers: (f.mlLayers ?? [])
-        .map((r, i) => ({ r, i }))
-        .filter(({ r }) => num(r.permMd) != null && num(r.thicknessFt) != null && num(r.prPsi) != null)
-        .map(({ r, i }) => ({ idx: i, kOld: num(r.permMd), kNew: num(r.permMd) * scale })),
+      layers: activeLayerRows(f).map(({ r, i }) => ({ idx: i, name: layerName(r, i), kOld: num(r.permMd), kNew: num(r.permMd) * scale })),
     };
   }
   return {
@@ -1120,9 +1202,10 @@ export function gasCalibrate(f) {
 }
 
 export function gasSensitivity(f) {
-  const cfg = buildGasCfg(f);
-  const ipr = buildGasIpr(f, cfg);
-  if (ipr.error) return ipr;
+  const cfg0 = buildGasCfg(f);
+  const wm = gasWellModel(f, cfg0);
+  if (wm.error) return wm;
+  const { cfg, ipr, inflow } = wm;
   const aof = ipr.c != null ? ipr.c * ipr.prPsi ** (2 * ipr.n) : aofGasJ(ipr);
   const rates = gasRateGrid(0.1, Math.max(aof * 0.999, 1));
   const sets = (f.vlpSets ?? []).map((s, i) => {
@@ -1167,6 +1250,7 @@ export function gasSensitivity(f) {
     // the sensitivity chart tops its pressure axis at the initial reservoir
     // pressure: nothing in a producing system can sit above it
     priPsi: ipr.priPsi ?? ipr.prPsi,
+    multiLayer: mlSummary(inflow),
   };
 }
 
@@ -1628,9 +1712,11 @@ export function oilReserve(f) {
 /** ESP Pres sensitivity: each future Pres gets the Darcy future J, then a
  *  FULL coupled ESP solve — the solved node and the ESP data at that node. */
 export function oilEspSens(f) {
-  const cfg = buildOilCfg(f);
-  const pb = oilPb(f, cfg);
-  const ipr = buildOilIpr(f, cfg, pb);
+  const cfg0 = buildOilCfg(f);
+  const pb = oilPb(f, cfg0);
+  const wm = oilWellModel(f, cfg0, pb);
+  if (wm.error) return wm;
+  const { cfg, ipr, inflow } = wm;
   const bp = buildEspPump(f);
   if (bp.error) return bp;
   if (!bp.pump) return { error: 'select a pump first' };
@@ -1684,6 +1770,7 @@ export function oilEspSens(f) {
     priPsi: ipr.priPsi ?? ipr.prPsi,
     currentIpr: iprCurve(ipr, { wcPct: cfg.wcPct }),
     vlpCurve,
+    multiLayer: mlSummary(inflow),
   };
 }
 
@@ -1957,9 +2044,11 @@ const espOpts = (f) => ({
 /** Full ESP solve: coupled dP, traverse match at the intake, pump curves
  *  for the chart, and the results block shown beside. */
 export function oilEsp(f) {
-  const cfg = buildOilCfg(f);
-  const pb = oilPb(f, cfg);
-  const ipr = buildOilIpr(f, cfg, pb);
+  const cfg0 = buildOilCfg(f);
+  const pb = oilPb(f, cfg0);
+  const wm = oilWellModel(f, cfg0, pb);
+  if (wm.error) return wm;
+  const { cfg, ipr, inflow } = wm;
   const bp = buildEspPump(f);
   if (bp.error) return bp;
   if (!bp.pump) return { error: 'select a pump from the database or enter a custom curve (Manual ΔP uses Solve well)' };
@@ -2029,15 +2118,26 @@ export function oilEsp(f) {
     pbPsi: pb,
     prPsi: ipr.prPsi,
     j: ipr.j,
+    // the layers at the coupled operating point -- same shape Solve well
+    // ships, so the ESP view can show the same table
+    multiLayer: inflow
+      ? {
+          ...mlSummary(inflow),
+          layersAtOp: multiLayerOilRates(op.pwfTraversePsi ?? op.pwfPsi, inflow.layers),
+          curves: multiLayerOilCurves(inflow.layers, { allowCrossflow: inflow.allowCrossflow }),
+        }
+      : null,
   };
 }
 
 
 /** First run: match the stage count of the selected pump (new pump, wear 0). */
 export function oilEspStages(f) {
-  const cfg = buildOilCfg(f);
-  const pb = oilPb(f, cfg);
-  const ipr = buildOilIpr(f, cfg, pb);
+  const cfg0 = buildOilCfg(f);
+  const pb = oilPb(f, cfg0);
+  const wm = oilWellModel(f, cfg0, pb);
+  if (wm.error) return wm;
+  const { cfg, ipr, inflow } = wm;
   const bp = buildEspPump(f);
   if (bp.error) return bp;
   if (!bp.pump) return { error: 'select a pump first' };
@@ -2062,9 +2162,11 @@ export function oilEspStages(f) {
 /** Later life: wear from the measured Pint/Pdis couple + PI at constant
  *  Pres (the matched K carries the PI into the Darcy record). */
 export function oilEspWear(f) {
-  const cfg = buildOilCfg(f);
-  const pb = oilPb(f, cfg);
-  const ipr = buildOilIpr(f, cfg, pb);
+  const cfg0 = buildOilCfg(f);
+  const pb = oilPb(f, cfg0);
+  const wm = oilWellModel(f, cfg0, pb);
+  if (wm.error) return wm;
+  const { cfg, ipr, inflow } = wm;
   const bp = buildEspPump(f);
   if (bp.error) return bp;
   if (!bp.pump) return { error: 'select a pump first' };
@@ -2082,10 +2184,29 @@ export function oilEspWear(f) {
       measPdisPsi: pdis,
       qOilStbD: num(f.testQOilStbD),
     });
+    // wear = 1 - dP(measured) / dP(theoretical). When the in-situ rate at the
+    // intake is past the end of the pump curve -- almost always free gas --
+    // the theoretical dP is ZERO and the ratio is -Infinity, which JSON sends
+    // as null. The UI then threw on it and applied nothing while its text
+    // said "applied". No wear factor explains a measured dP from a pump that
+    // gives no head: say why instead (30 Sep 2026).
+    if (!(m.dpTheoPsi > 0) || !Number.isFinite(m.wearFactor)) {
+      const curve = pumpCurveAt(bp.pump, { stages: opts.stages, freqHz: opts.freqHz, wearFactor: 0 });
+      const qEnd = Math.max(...curve.map((p) => p.rateBpd));
+      return {
+        error:
+          `wear match: the pump delivers no head at the measured intake, so no wear factor can explain the ` +
+          `measured ΔP of ${m.dpMeasPsi.toFixed(0)} psi — nothing was applied. The rate reaching the pump is ` +
+          `${m.qGrossPumpBpd.toFixed(0)} bbl/d in situ, past the end of the ${bp.pump.name} curve at ${opts.freqHz} Hz ` +
+          `(${qEnd.toFixed(0)} bbl/d), with ${m.freeGasPct.toFixed(1)} % free gas at intake and the separator at ` +
+          `${opts.sepEffPct} %. Check the separator efficiency, the GOR and water cut, the test rate and the measured Pint.`,
+        status: 'no-head',
+      };
+    }
     const pvt = oilPvtBundle(cfg, pb);
     const darcy = oilDarcyAtPr(f, pvt, ipr.prPsi);
     const matchedPermMd = permFromJOil({ ...darcy, permMd: undefined, j: m.jMatched });
-    return { ...m, matchedPermMd, prPsi: ipr.prPsi };
+    return { ...m, matchedPermMd, prPsi: ipr.prPsi, multiLayer: mlSummary(inflow) };
   } catch (e) {
     return { error: e.message };
   }
@@ -2098,9 +2219,11 @@ export function oilEspWear(f) {
 // consistency check. The UI writes the matched efficiency back to the
 // separator input so every downstream run uses it.
 export function oilEspSepEff(f) {
-  const cfg = buildOilCfg(f);
-  const pb = oilPb(f, cfg);
-  const ipr = buildOilIpr(f, cfg, pb);
+  const cfg0 = buildOilCfg(f);
+  const pb = oilPb(f, cfg0);
+  const wm = oilWellModel(f, cfg0, pb);
+  if (wm.error) return wm;
+  const { cfg, ipr, inflow } = wm;
   const bp = buildEspPump(f);
   if (bp.error) return bp;
   if (!bp.pump) return { error: 'select a pump first' };
@@ -2122,7 +2245,7 @@ export function oilEspSepEff(f) {
     const pvt = oilPvtBundle(cfg, pb);
     const darcy = oilDarcyAtPr(f, pvt, ipr.prPsi);
     const matchedPermMd = permFromJOil({ ...darcy, permMd: undefined, j: m.jMatched });
-    return { ...m, matchedPermMd, prPsi: ipr.prPsi, pbPsi: pb };
+    return { ...m, matchedPermMd, prPsi: ipr.prPsi, pbPsi: pb, multiLayer: mlSummary(inflow) };
   } catch (e) {
     return { error: e.message };
   }
