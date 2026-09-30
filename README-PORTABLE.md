@@ -127,6 +127,12 @@ Changes in build 2.4 (7 Sep), kept for reference:
   curve, the sensitivities and the head / ESP matches had each built their own
   single-layer IPR and ignored the block. Reserve and forecast stay
   single-layer by design.
+- **The exe wears the WellSim icon** (30 Sep 2026, build 3.1): the navy square
+  with the IPR and VLP curves and the white operating point, the same drawing
+  as the website's icons, instead of the Node.js hexagon it had carried since
+  the first build (it is node.exe underneath). Explorer, the taskbar and the
+  Save dialog all show it. The file's Details tab still names Node.js as the
+  runtime.
 - **Every grid table scrolls sideways inside its own box** — the reserve prod
   tables, surveys, multi-rate tests, layers, pump curves and sensitivity sets,
   on any window narrower than the table. On a phone the card itself no longer

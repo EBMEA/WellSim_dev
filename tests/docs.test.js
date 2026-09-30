@@ -109,6 +109,10 @@ test('the portable build recipe is in the repo, not only on a USB stick', () => 
   for (const f of [
     'portable/main.js',
     'portable/strip-signature.js',
+    // the exe's Windows icon and the step that sets it (30 Sep 2026) -- without
+    // them a rebuild quietly ships node.exe's hexagon again
+    'portable/set-icon.js',
+    'portable/wellsim.ico',
     'sea-config.json',
     'build.ps1',
     'src/ui/vendor/plotly.min.js',
@@ -118,6 +122,10 @@ test('the portable build recipe is in the repo, not only on a USB stick', () => 
   const pkg = JSON.parse(read('package.json'));
   assert.ok(pkg.devDependencies?.esbuild, 'esbuild pinned for the portable build');
   assert.ok(pkg.devDependencies?.postject, 'postject pinned for the portable build');
+  assert.ok(pkg.devDependencies?.resedit, 'resedit pinned for the portable icon');
+  assert.match(read('build.ps1'), /set-icon\.js build\\WellSim\.exe portable\\wellsim\.ico/, 'build.ps1 must set the icon');
+  // and the server itself still pulls in nothing at runtime
+  assert.equal(pkg.dependencies, undefined, 'the server has no runtime dependencies');
   // the SEA config must reference assets that actually exist
   const sea = JSON.parse(read('sea-config.json'));
   for (const src of Object.values(sea.assets ?? {}))

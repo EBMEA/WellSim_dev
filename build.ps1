@@ -7,6 +7,10 @@ New-Item -ItemType Directory -Force build | Out-Null
 node --experimental-sea-config sea-config.json
 Copy-Item "C:\Program Files\nodejs\node.exe" build\WellSim.exe -Force
 & node_modules\.bin\postject.cmd build\WellSim.exe NODE_SEA_BLOB build\sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+# the WellSim icon, not node.exe's -- AFTER the SEA blob goes in (postject
+# moves .rsrc to the end of the file, so this only rewrites the tail) and
+# before signing. portable/set-icon.js explains the order.
+node portable\set-icon.js build\WellSim.exe portable\wellsim.ico
 # strip node.exe's stale signature pointer, then code-sign
 node portable\strip-signature.js build\WellSim.exe
 # Signer preference: the publisher name that lands in the Digital Signatures
