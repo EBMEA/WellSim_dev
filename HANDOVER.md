@@ -6,22 +6,22 @@ shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `d5984
 **Manual:** `src/ui/help.html` (served at /help.html) ·
 **Codex comparison:** https://bldrz.net
 
-**Where it stands, 30 September 2026.** `main` is at `d5984d0` (222 commits), working
-tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The live site carries
-that commit; the portable and the backups are behind it:
+**Where it stands, 30 September 2026 (evening).** `main` is at `952f14f` (224 commits),
+working tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The website
+and the portable carry the same application:
 
 | | commit | note |
 | --- | --- | --- |
-| `wellsim-dev/main` (GitHub) | `d5984d0` | default branch, **public** |
-| https://wellssim.app | `d5984d0` | every served file byte-identical to the commit; 59/59 on the live URL; today's SERVER behaviour proven from outside (see 30 September) |
-| `WellSim_3.0` (D: and F:, portable exe) | `f28fc23` | **behind** — no SITHT column, no multi-layer zones, none of the well-model wiring, no wear fix. Physics of what it does have is unchanged |
-| `WellSim-FullBackup-2026-09-27` (D: only) | `a3dd77c` | 51/51, drilled; **two application commits behind** |
-| `WellSim-Handover-2026-09-27` (D: only) | `a3dd77c` | 167/167, drilled; **two application commits behind** |
+| `wellsim-dev/main` (GitHub) | `952f14f` | default branch, **public** |
+| https://wellssim.app | `d5984d0` | **current** — `edca0f9` and `952f14f` change nothing the server serves. Every served file byte-identical to `d5984d0`; 59/59 on the live URL; its server behaviour proven from outside |
+| `WellSim_3.1` (D: and F:, portable exe) | `952f14f` | **current**, and the first exe with the **WellSim icon**. Built from that tree before it was committed; the patch beside the exe hashes identically to `git diff --binary edca0f9 952f14f` |
+| `WellSim-FullBackup-2026-09-30` (D: and F:) | `edca0f9` | 51/51 on each, drilled from both |
+| `WellSim-Handover-2026-09-27` (D: and F:) | `a3dd77c` | 167/167 on each; **two application commits behind** — cut a fresh one |
 
-**F: is two backups and one handover behind.** It holds everything through
-`WellSim-FullBackup-2026-09-13b` and `WellSim_3.0`, plus the stale
-`WellSim-Handover-2026-09-18` — which the owner asked to have removed from F: and
-which could not be, because F: was detached at the time.
+**F: now holds everything D: holds.** Mirrored and verified on 30 September. It also
+still holds the stale `WellSim-Handover-2026-09-18`, which the owner asked to have
+removed on 27 September while F: was detached; removing it now waits on the owner's
+say-so.
 
 **The deploy of `f28fc23` failed twice before it worked, and the reason will recur if it
 is forgotten.** The server's checkout had been a **detached HEAD** since the 12 September
@@ -37,6 +37,39 @@ the shared-hosting runbook; both deploy routes work normally now.
 and no account, and is what goes to a client on a USB stick.
 
 ---
+
+## 30 September (evening) — portable 3.1, and the WellSim icon
+
+**Every portable until 3.1 wore the Node.js hexagon.** The exe is node.exe with the
+app injected, and the build never replaced node.exe's icon. 3.1 carries the
+website's logo — the navy square with the IPR and VLP curves and the white
+operating point — in Explorer, on the taskbar and in the Save dialog. `952f14f`.
+
+- **One drawing, two deliverables.** `scripts/make-icons.mjs` already drew the
+  site's PWA icons; it now also writes `portable/wellsim.ico` (16–256 px). The web
+  PNGs regenerate **byte-identical**, so the site did not change.
+- **Small frames needed their own treatment.** The PWA edge ramp fades *inward*
+  over 1.5 px, so a line under ~3 px never reaches full colour — the 16 and 24 px
+  curves came out as faint dashes. Those frames ramp across the edge instead, with
+  favicon.svg's bolder proportions. Frames below 256 px are 32-bit **DIBs, not
+  PNG**: Explorer reads PNG at any size, but `ExtractIcon`, GDI+ and .NET's `Icon`
+  read only DIB below 256 — which is how the first contact sheet failed to render.
+- **`portable/set-icon.js` sets it** with `resedit` (pure JS, a devDependency; the
+  server still has **no runtime dependencies** — `docs.test.js` now asserts that).
+- **The order matters.** It runs **after** postject injects the app and before
+  signing: postject moves `.rsrc` to the end of the file, so the icon edit rewrites
+  only the tail. The first build ran it *before* injection; `resedit` had to shift
+  `.reloc`, and postject's parser printed `Relocation corrupted`. The table
+  measured intact even then — my own first check called it broken by choosing
+  sections on their raw size, which overlaps the next section — but a build that
+  prints an error is not shipped. The shipped build's relocation table is
+  **byte-identical to node.exe's**, 526 consistent blocks.
+- **The Details tab still says "Node.js JavaScript Runtime".** That is node.exe's
+  version resource, deliberately left alone; only the icon was asked for.
+
+3.1 verified by running it: 59/59 against the exe, the new icon read back through
+Windows' own `ExtractAssociatedIcon` from both the D: and F: copies, charts offline,
+service worker neutered, signature Valid. Both zips re-hashed on F:.
 
 ## 30 September — SITHT on the gas surveys, and multi-layer zones on every well-model route
 
@@ -765,29 +798,34 @@ appeared in the first place.
   from committed source; the outputs (`WellSim.exe`, `build/`) are gitignored
   because they are ~200 MB per build. It serves the identical UI and physics,
   stores cases in a `cases/` folder **beside the exe**, has no accounts, and
-  takes the first free port from 3355. Current: **build 2.8, 12 Sep 2026**,
-  from commit `768d4d1`, signed `CN=M. El-Ashry`, at `D:\WellSim_2.8\` — exe,
-  bare zip, distribution zip, both hash records and the certificate. **It is
-  one commit behind `main`** and carries none of the 13 Sep water-well UI work;
-  its physics is identical. 2.7 is superseded but still at `D:\WellSim_2.7\`.
-  **Neither is on F: yet.**
+  takes the first free port from 3355. Current: **build 3.1, 30 Sep 2026**,
+  from commit `952f14f`, signed `CN=M. El-Ashry`, at `D:\WellSim_3.1\` and
+  `F:\WellSim_3.1\` — exe, bare zip, distribution zip, both hash records, the
+  certificate, and the provenance patch with `BUILT-FROM.txt`. **It is the first
+  build with the WellSim icon** (see 30 September, evening) and carries every
+  application change to date. 2.7 through 3.0 are superseded but kept.
 
-  2.8 was **verified by running it**, not by trusting the build log: with the
-  dev server stopped so the exe was the only listener, the project's own smoke
-  suite passed **38/38** against the binary — oil nodal, ESP coupling, gas
+  **Builds 3.0 and 3.1 were made from UNCOMMITTED trees**, at the owner's
+  instruction, and each folder says so: a `git diff --binary` patch beside the
+  exe, applied to the named base commit, reproduced the source byte for byte,
+  and `BUILT-FROM.txt` was closed with the commit once one existed. Every earlier
+  build names a clean commit.
+
+  Each build is **verified by running it**, not by trusting the build log: with the
+  dev server stopped so the exe is the only listener, the project's own smoke
+  suite (now 59 checks) passes against the binary — oil nodal, ESP coupling, gas
   lift, the reserve solvers, Tarner and Walsh, gas p/Z, condensate properties,
   water injectivity — and the page asks for `/vendor/plotly.min.js` and gets
   all 4.4 MB from the exe, so it charts with no internet at all. That last one
   is the single thing most easily lost in a rebuild, because it depends on
   `portable/main.js` being the bundled entry rather than the plain server.
 
-  **2.5 through 2.8 are near-identical PROGRAMS with different bytes.** Every
+  **Builds are near-identical PROGRAMS with different bytes.** Every
   build takes a fresh signature, timestamp and base `node.exe`, so **no two
   builds of identical source produce the same file.** The version number tracks
   the FILE, not the program; 2.5's and 2.6's binaries no longer exist. Check an
   exe against the `.sha256.txt` bearing its own number — the others are
-  history, never targets. **A rebuild will not reproduce 2.8's hashes**, and
-  will fold in the water-well work.
+  history, never targets. **A rebuild will not reproduce 3.1's hashes.**
 
   **2.6 is a REBUILD of 2.5, not a new version.** Nothing in `src/`,
   `portable/`, `build.ps1` or `sea-config.json` changed between `9025968` and
