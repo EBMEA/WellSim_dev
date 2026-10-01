@@ -6,17 +6,17 @@ shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `d5984
 **Manual:** `src/ui/help.html` (served at /help.html) ·
 **Codex comparison:** https://bldrz.net
 
-**Where it stands, 1 October 2026 (evening).** `main` is at `4986015` (229 commits),
+**Where it stands, 1 October 2026 (evening).** `main` is at `c63c487` (230 commits),
 working tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The website
 and the portable carry the same application; today's commits are the brochure,
 `.gitignore` and this file only (see 1 October):
 
 | | commit | note |
 | --- | --- | --- |
-| `wellsim-dev/main` (GitHub) | `4986015` | default branch, **public** |
-| https://wellssim.app | `d5984d0` | **current** — nothing from `edca0f9` to `4986015` changes what the server serves. Every served file byte-identical to `d5984d0`; 59/59 on the live URL; its server behaviour proven from outside |
+| `wellsim-dev/main` (GitHub) | `c63c487` | default branch, **public** |
+| https://wellssim.app | `d5984d0` | **current** — nothing from `edca0f9` to `c63c487` changes what the server serves. Every served file byte-identical to `d5984d0`; 59/59 on the live URL; its server behaviour proven from outside |
 | `WellSim_3.1` (D: and F:, portable exe) | `952f14f` | **current**, and the first exe with the **WellSim icon**. Built from that tree before it was committed; the patch beside the exe hashes identically to `git diff --binary edca0f9 952f14f` |
-| `WellSim-FullBackup-2026-10-01` (D: and F:) | `4986015` | 54/54 on each, drilled from both; **the first with `MOC/`** and the first with portable 3.1 |
+| `WellSim-FullBackup-2026-10-01b` (D: and F:) | `c63c487` | 54/54 on each, drilled from both; holds **both MOC posters**. `-10-01` (same afternoon, `4986015`) was the first with `MOC/` and portable 3.1 |
 | `WellSim-Handover-2026-09-27` (D: and F:) | `a3dd77c` | 167/167 on each; **two application commits behind** — cut a fresh one |
 
 **F: holds every WellSim folder D: holds.** Mirrored and verified on 1 October,
@@ -58,8 +58,9 @@ in a public repository.
 | in `MOC/` | what it is |
 | --- | --- |
 | `__sitelogo__logo.jpg`, `MOC sponsors.PNG`, `Wellsim site bar code.jpg` | the owner's inputs: BAPETCO/Cheiron logo, the MOC patronage-and-sponsors strip, the site QR code |
-| `WellSim-MOC2026-poster-A1.pptx` / `.pdf` / `-preview.png` | the poster, A1 portrait (594 × 841 mm, checked in the PDF), editable |
-| `poster-src/` | the poster's generator and its inputs — see its README.txt; rebuilt from there and checked on 1 October |
+| `WellSim-MOC2026-poster-A1.pptx` / `.pdf` / `-preview.png` | the original poster, A1 portrait (594 × 841 mm, checked in the PDF), editable |
+| `WellSim-MOC2026-poster-A1-updated.pptx` / `.pdf` / `-preview.png` | the **updated** poster: smaller screenshots and six native chart panels (below) |
+| `poster-src/` | both posters' generators (`poster.js`, `poster2.js`) and their inputs — see its README.txt; both rebuilt from there and checked on 1 October |
 | `WellSim-Brochure.pdf` | the **general** brochure, identical to `docs/brochure/` and `ALdocs/` |
 | `WellSim-Brochure-MOC2026.html` / `.pdf`, `make-brochure-MOC2026.cjs` | the **MOC edition**: the general brochure plus the company logo, an MOC line and the sponsor strip |
 | `WellSim-25min-6-10-2026_BAPETCO_Corporate.pptx` | the owner's 25-minute deck, **updated text-only** at the owner's request; `…_original.pptx` beside it is the owner's version, `update-corporate-deck.cjs` the edit |
@@ -96,8 +97,20 @@ in a public repository.
   desktop card, which carried the mobile card's text and "labtop", rewritten;
   named, switchable zones added to slide 5; slide 13's garbled subtitle fixed.
   Benchmark and methodology claims (slides 6, 11, 12) were left as written.
-- **`MOC/` is in `WellSim-FullBackup-2026-10-01`** as `moc/moc.tar.gz`, on both
-  drives.
+- **The updated poster** (evening, at the owner's request) keeps the original's
+  header, introduction and footer, shrinks the desktop and phone screenshots to make
+  room, and shows six native chart panels in a 3 × 2 grid. Three are new, all from
+  the app's default cases, captured by driving the real UI (`capture2.js`,
+  `capture-gas.js`): **ESP** — the 40/50/60 Hz head curves, the thrust window and
+  the operating point (ESP B 538-3600, 145 stages, 50 Hz: 4,214 ft at 3,383 bbl/d);
+  **forecast** — gas rate history and 60 monthly steps, EUR 76.7 Bscf plus 2.78 MMstb
+  condensate; **lift selection** — unit cost of the three methods that pass the
+  screen, gas lift recommended at $3.41/bbl. The oil forecast was not used: its
+  default case dies on the first step at the forecast FTHP, an empty chart. The gas
+  forecast's first step rises slightly before the decline; that is the default case,
+  not the poster.
+- **`MOC/` is in the 1 October backups** as `moc/moc.tar.gz`, on both drives — both
+  posters in `-10-01b`.
 
 **The 1 October backup.** `WellSim-FullBackup-2026-10-01` at `4986015`, same layout
 as -30 plus `moc/`; portable 3.1 replaces 3.0 (whose zips stay in -30). Restore
@@ -105,6 +118,12 @@ drill: cloned from the bundle, 356/356 and 43/43 inside the clone, tree identica
 the working copy; repeated from the F: bundle. Client data 176 entries / 114 cases,
 credential-clean. `data-backups/2026-09-03/` aged out of the app's rolling window —
 each of its eight files is in eleven earlier backups — and `2026-10-01/` came in.
+
+**The 1 October evening backup.** `WellSim-FullBackup-2026-10-01b` at `c63c487`: the
+updated poster and its source are the only change (`moc/` 24 → 31 files); every other
+listing matches `-10-01` and the client data is byte-identical. Drilled from both
+drives, 356/356 and 43/43 inside the D: clone. Every WellSim folder on D: is on F:,
+checked under both spellings.
 
 ## 30 September (evening) — portable 3.1, and the WellSim icon
 
