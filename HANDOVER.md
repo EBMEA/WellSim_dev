@@ -6,14 +6,15 @@ shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `d5984
 **Manual:** `src/ui/help.html` (served at /help.html) ·
 **Codex comparison:** https://bldrz.net
 
-**Where it stands, 30 September 2026 (evening).** `main` is at `952f14f` (224 commits),
-working tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The website
-and the portable carry the same application:
+**Where it stands, 1 October 2026.** `main` is at `50cd163` (228 commits), working
+tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The website and the
+portable carry the same application; today's commits are the brochure and
+`.gitignore` only (see 1 October):
 
 | | commit | note |
 | --- | --- | --- |
-| `wellsim-dev/main` (GitHub) | `952f14f` | default branch, **public** |
-| https://wellssim.app | `d5984d0` | **current** — `edca0f9` and `952f14f` change nothing the server serves. Every served file byte-identical to `d5984d0`; 59/59 on the live URL; its server behaviour proven from outside |
+| `wellsim-dev/main` (GitHub) | `50cd163` | default branch, **public** |
+| https://wellssim.app | `d5984d0` | **current** — nothing from `edca0f9` to `50cd163` changes what the server serves. Every served file byte-identical to `d5984d0`; 59/59 on the live URL; its server behaviour proven from outside |
 | `WellSim_3.1` (D: and F:, portable exe) | `952f14f` | **current**, and the first exe with the **WellSim icon**. Built from that tree before it was committed; the patch beside the exe hashes identically to `git diff --binary edca0f9 952f14f` |
 | `WellSim-FullBackup-2026-09-30` (D: and F:) | `edca0f9` | 51/51 on each, drilled from both |
 | `WellSim-Handover-2026-09-27` (D: and F:) | `a3dd77c` | 167/167 on each; **two application commits behind** — cut a fresh one |
@@ -42,6 +43,50 @@ the shared-hosting runbook; both deploy routes work normally now.
 and no account, and is what goes to a client on a USB stick.
 
 ---
+
+## 1 October — the MOC 2026 poster and brochure
+
+WellSim is being presented at **MOC 2026**, the Mediterranean Offshore Conference &
+Exhibition, 20–22 October 2026, Bibliotheca Alexandrina, Alexandria. Everything made
+for it lives in **`MOC/`, which is gitignored** (`50cd163`): it holds company
+logos, the conference's sponsor artwork and a corporate deck, none of which belongs
+in a public repository.
+
+| in `MOC/` | what it is |
+| --- | --- |
+| `__sitelogo__logo.jpg`, `MOC sponsors.PNG`, `Wellsim site bar code.jpg` | the owner's inputs: BAPETCO/Cheiron logo, the MOC patronage-and-sponsors strip, the site QR code |
+| `WellSim-MOC2026-poster-A1.pptx` / `.pdf` / `-preview.png` | the poster, A1 portrait (594 × 841 mm, checked in the PDF), editable |
+| `poster-src/` | the poster's generator and its inputs — see its README.txt; rebuilt from there and checked on 1 October |
+| `WellSim-Brochure.pdf` | the **general** brochure, identical to `docs/brochure/` and `ALdocs/` |
+| `WellSim-Brochure-MOC2026.html` / `.pdf`, `make-brochure-MOC2026.cjs` | the **MOC edition**: the general brochure plus the company logo, an MOC line and the sponsor strip |
+| `WellSim-25min-6-10-2026_BAPETCO_Corporate.pptx` | the owner's own deck; not made or touched here |
+
+- **The poster** is built by pptxgenjs, so every box stays editable and the two
+  charts are **native PowerPoint charts**, not pictures: the oil IPR/VLP (operating
+  point 2,132 stb/d at 2,647 psi, AOF 6,369 stb/d) and the gas p/Z line (minimum
+  connected GIIP 123.8 Bscf), both from the app's default cases. pptxgenjs cannot set
+  markers per series and writes blank points as empty values, so the generator
+  post-edits the chart XML for both. The PDF is exported by PowerPoint itself
+  (COM) — there is no LibreOffice on this workstation. The header names the owner
+  as **Prod. Tech. GM, BAPETCO**, at the owner's instruction.
+- **The QR code** decodes to `https://q.me-qr.com/yc907j5j`, a third-party short
+  link that 302-redirects to `https://wellssim.vercel.app`, the owner's landing page
+  (which links on to wellssim.app and the GitHub release). The supplied JPEG has
+  almost no quiet zone and two decoders fail on it, so every printed copy redraws it
+  from its own 29×29 modules with a 4-module quiet zone, and each was decoded back
+  from the rendered output. **If that me-qr link lapses, every printed piece
+  points nowhere.** The owner chose to keep it (1 October); a QR straight to
+  `https://wellssim.app` is the alternative.
+- **The general brochure** now carries the owner's identification and the same QR,
+  as inline vector SVG (`1c30085`). Its source is public, so that commit
+  publishes the job title and company — done at the owner's instruction.
+- **Low-resolution inputs.** The logo is 150 px square and the sponsor strip
+  107 px tall. Fine on an A4 brochure; soft on an A1 poster at reading distance.
+  Better artwork from MOC replaces them in place (*Change Picture* in the PPTX).
+- **The printed address is wellssim.app, double s** — the live domain — though the
+  owner's request spelt it with one. Kept at the owner's instruction, as is the
+  landing page's "WellsSim" spelling.
+- **`MOC/` is in no backup yet.** It postdates `WellSim-FullBackup-2026-09-30`.
 
 ## 30 September (evening) — portable 3.1, and the WellSim icon
 
@@ -438,12 +483,14 @@ lacked `27ea04e`. That was true until the 10 September merge and is not true now
 
 | remote | repository | `main` |
 | --- | --- | --- |
-| `wellsim-dev` | `EBMEA/WellSim_dev` | `f98817e` — **current**, default branch, public |
+| `wellsim-dev` | `EBMEA/WellSim_dev` | **current** (see the head of this file), default branch, public |
 | `origin` | `aleimam/wellsim` | `de2393c` — far behind, receives none of this work |
 | `ebmea` | `EBMEA/wellssim` | `918329e` — unrelated, note the double `s` |
 
 Local `main` tracks `wellsim-dev/main`, so a bare `git push` or `git pull` goes to
 `EBMEA/WellSim_dev`. Reaching the other two takes an explicit remote name.
+**`git push origin main` is refused** — `403`, `Permission to aleimam/wellsim.git
+denied to EBMEA` — as it was on 1 October. Nothing is lost; push to `wellsim-dev`.
 
 **`EBMEA/WellSim_dev` is public.** Before the first push the whole history on every
 branch was scanned for private keys, cloud tokens and inline secret assignments;
@@ -456,6 +503,9 @@ workbooks, the ESP catalogue and `ALdocs/` out of git is what makes that safe, a
 
 ## Still open
 
+- **`MOC/` is in no backup** (1 October): the poster, both brochure editions, the
+  poster's source and the owner's corporate deck exist only on D:. The next full
+  backup and its F: mirror pick it up.
 - **The Hetzner and Cloudflare API tokens are deleted here but NOT REVOKED.** The
   Hetzner one is full control of `91.98.23.255`, a live server still serving thepwf.net
   and bldrz.net, and `wellsim-deploy` is still in its `authorized_keys`. Revoking them
@@ -648,13 +698,13 @@ scripts/             validation-sweep.mjs · make-icons.mjs
 ```
 
 **Not in git, and deliberately so** (see `.gitignore`): `data/`,
-`data-backups/`, `ESP PUMPS DATA Base/`, `ALdocs/`, `oil excel/`, `gas excel/`,
+`data-backups/`, `ESP PUMPS DATA Base/`, `ALdocs/`, `MOC/`, `oil excel/`, `gas excel/`,
 `training slids/`, `*.xls*`, `*.pptx`, `*.pdf`, and the build outputs
 (`WellSim.exe`, `build/`, `node_modules/`). The workbooks are the source
 material, the ESP catalogues are vendor property carrying a reproduction
 notice, and the client cases are private; none belongs in a repository, least
-of all a public one. They **are** in the D: backups — and, four backups out of
-date, on F:.
+of all a public one. They **are** in the D: backups and on F: — except `MOC/`,
+which is newer than the last backup.
 
 `docs.test.js` asserts this against `git ls-files` rather than against
 `.gitignore`, because an ignore rule is a default and not a guarantee: `git
