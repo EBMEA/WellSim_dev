@@ -6,23 +6,26 @@ shared hosting, cPanel/LiteSpeed/Passenger, Node 24.20.0, deployed commit `d5984
 **Manual:** `src/ui/help.html` (served at /help.html) ·
 **Codex comparison:** https://bldrz.net
 
-**Where it stands, 1 October 2026.** `main` is at `50cd163` (228 commits), working
-tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The website and the
-portable carry the same application; today's commits are the brochure and
-`.gitignore` only (see 1 October):
+**Where it stands, 1 October 2026 (evening).** `main` is at `4986015` (229 commits),
+working tree clean, **356/356 tests passing** and the sweep **43/43 PASS**. The website
+and the portable carry the same application; today's commits are the brochure,
+`.gitignore` and this file only (see 1 October):
 
 | | commit | note |
 | --- | --- | --- |
-| `wellsim-dev/main` (GitHub) | `50cd163` | default branch, **public** |
-| https://wellssim.app | `d5984d0` | **current** — nothing from `edca0f9` to `50cd163` changes what the server serves. Every served file byte-identical to `d5984d0`; 59/59 on the live URL; its server behaviour proven from outside |
+| `wellsim-dev/main` (GitHub) | `4986015` | default branch, **public** |
+| https://wellssim.app | `d5984d0` | **current** — nothing from `edca0f9` to `4986015` changes what the server serves. Every served file byte-identical to `d5984d0`; 59/59 on the live URL; its server behaviour proven from outside |
 | `WellSim_3.1` (D: and F:, portable exe) | `952f14f` | **current**, and the first exe with the **WellSim icon**. Built from that tree before it was committed; the patch beside the exe hashes identically to `git diff --binary edca0f9 952f14f` |
-| `WellSim-FullBackup-2026-09-30` (D: and F:) | `edca0f9` | 51/51 on each, drilled from both |
+| `WellSim-FullBackup-2026-10-01` (D: and F:) | `4986015` | 54/54 on each, drilled from both; **the first with `MOC/`** and the first with portable 3.1 |
 | `WellSim-Handover-2026-09-27` (D: and F:) | `a3dd77c` | 167/167 on each; **two application commits behind** — cut a fresh one |
 
-**F: now holds everything D: holds.** Mirrored and verified on 30 September, and the
-stale `WellSim-Handover-2026-09-18` removed from it the same day at the owner's
-instruction, after checking it held nothing found nowhere else. The 27 September
-handover is now the only one, on both drives.
+**F: holds every WellSim folder D: holds.** Mirrored and verified on 1 October,
+including three that had never gone across — the landing-page project `WellsSim` and
+its two 27 September snapshots, missed because the mirror's name filter matched
+`wellsim` and they spell it `WellsSim`. Compare with `-iE 'wells?sim'`. The 27
+September handover is the only one, on both drives. What D: holds and F: does not is
+deliberate: the working copy (inside every backup), an old restore drill, the loose
+source workbooks (inside every backup) and two files unrelated to WellSim.
 
 **BitLocker is settled, and F: is NOT encrypted.** D:, C: and E: are encrypted and
 protected. F: — the Transcend StoreJet USB drive that holds every backup, every
@@ -59,7 +62,7 @@ in a public repository.
 | `poster-src/` | the poster's generator and its inputs — see its README.txt; rebuilt from there and checked on 1 October |
 | `WellSim-Brochure.pdf` | the **general** brochure, identical to `docs/brochure/` and `ALdocs/` |
 | `WellSim-Brochure-MOC2026.html` / `.pdf`, `make-brochure-MOC2026.cjs` | the **MOC edition**: the general brochure plus the company logo, an MOC line and the sponsor strip |
-| `WellSim-25min-6-10-2026_BAPETCO_Corporate.pptx` | the owner's own deck; not made or touched here |
+| `WellSim-25min-6-10-2026_BAPETCO_Corporate.pptx` | the owner's 25-minute deck, **updated text-only** at the owner's request; `…_original.pptx` beside it is the owner's version, `update-corporate-deck.cjs` the edit |
 
 - **The poster** is built by pptxgenjs, so every box stays editable and the two
   charts are **native PowerPoint charts**, not pictures: the oil IPR/VLP (operating
@@ -86,7 +89,22 @@ in a public repository.
 - **The printed address is wellssim.app, double s** — the live domain — though the
   owner's request spelt it with one. Kept at the owner's instruction, as is the
   landing page's "WellsSim" spelling.
-- **`MOC/` is in no backup yet.** It postdates `WellSim-FullBackup-2026-09-30`.
+- **The corporate deck was updated text-only** — every edit replaces the words
+  inside an existing run, so no style moved. The retired `wellsim.app` became
+  `wellssim.app` in 15 places (buttons, every footer, the notes); the test count, 321, became 356;
+  "38 / 38 module sub-options" → 59 / 59 module and sub-option checks; slide 4's
+  desktop card, which carried the mobile card's text and "labtop", rewritten;
+  named, switchable zones added to slide 5; slide 13's garbled subtitle fixed.
+  Benchmark and methodology claims (slides 6, 11, 12) were left as written.
+- **`MOC/` is in `WellSim-FullBackup-2026-10-01`** as `moc/moc.tar.gz`, on both
+  drives.
+
+**The 1 October backup.** `WellSim-FullBackup-2026-10-01` at `4986015`, same layout
+as -30 plus `moc/`; portable 3.1 replaces 3.0 (whose zips stay in -30). Restore
+drill: cloned from the bundle, 356/356 and 43/43 inside the clone, tree identical to
+the working copy; repeated from the F: bundle. Client data 176 entries / 114 cases,
+credential-clean. `data-backups/2026-09-03/` aged out of the app's rolling window —
+each of its eight files is in eleven earlier backups — and `2026-10-01/` came in.
 
 ## 30 September (evening) — portable 3.1, and the WellSim icon
 
@@ -503,9 +521,6 @@ workbooks, the ESP catalogue and `ALdocs/` out of git is what makes that safe, a
 
 ## Still open
 
-- **`MOC/` is in no backup** (1 October): the poster, both brochure editions, the
-  poster's source and the owner's corporate deck exist only on D:. The next full
-  backup and its F: mirror pick it up.
 - **The Hetzner and Cloudflare API tokens are deleted here but NOT REVOKED.** The
   Hetzner one is full control of `91.98.23.255`, a live server still serving thepwf.net
   and bldrz.net, and `wellsim-deploy` is still in its `authorized_keys`. Revoking them
@@ -703,8 +718,7 @@ scripts/             validation-sweep.mjs · make-icons.mjs
 (`WellSim.exe`, `build/`, `node_modules/`). The workbooks are the source
 material, the ESP catalogues are vendor property carrying a reproduction
 notice, and the client cases are private; none belongs in a repository, least
-of all a public one. They **are** in the D: backups and on F: — except `MOC/`,
-which is newer than the last backup.
+of all a public one. They **are** in the D: backups and on F:.
 
 `docs.test.js` asserts this against `git ls-files` rather than against
 `.gitignore`, because an ignore rule is a default and not a guarantee: `git
