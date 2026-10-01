@@ -92,13 +92,21 @@
   .band code { font-family: inherit; font-weight: 600; color: var(--ink); }
 
   footer {
-    margin-top: 4mm; padding: 3mm 0 5mm; border-top: 1.2pt solid var(--ink);
-    display: flex; justify-content: space-between; align-items: baseline;
+    margin-top: 4mm; padding: 3.5mm 0 6mm; border-top: 1.2pt solid var(--ink);
+    display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm;
     font-size: 8.4pt;
   }
-  footer .brand { font-weight: 700; }
-  footer .contact { color: var(--muted); }
-  footer .contact b { color: var(--gold); font-weight: 700; }
+  footer .who .eyebrow { font-size: 6.6pt; margin-bottom: 1.6mm; }
+  footer .name { font-size: 13pt; font-weight: 700; line-height: 1.1; letter-spacing: -.01em; }
+  footer .role { font-size: 9.4pt; color: #3A3226; margin-top: 1mm; }
+  footer .brand { margin-top: 3.2mm; font-weight: 700; }
+  footer .brand b { color: var(--gold); }
+  footer .qr { flex: none; margin: 0; text-align: center; }
+  footer .qr svg { display: block; width: 25mm; height: 25mm; }
+  footer .qr figcaption {
+    font-size: 6.6pt; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--gold); font-weight: 700; margin-top: .6mm;
+  }
 </style>
 </head>
 <body>
@@ -235,8 +243,23 @@
   </div>
 
   <footer>
-    <span class="brand">WellSim — well-performance analysis</span>
-    <span class="contact">by M. El-Ashry · <b>wellssim.app</b></span>
+    <div class="who">
+      <div class="eyebrow">Author</div>
+      <div class="name">M. El-Ashry</div>
+      <div class="role">Prod. Tech. GM, BAPETCO</div>
+      <div class="brand">WellSim — well-performance analysis · <b>wellssim.app</b></div>
+    </div>
+    <figure class="qr">
+      <!-- The site QR code supplied by the owner, redrawn as vector from its
+           own 29x29 modules with a 4-module quiet zone. It encodes
+           https://q.me-qr.com/yc907j5j, a short link that redirects to the
+           WellSim landing page. -->
+      <svg viewBox="0 0 37 37" role="img" aria-label="QR code: WellSim landing page" shape-rendering="crispEdges">
+        <rect width="37" height="37" fill="#fff"/>
+        <path fill="#241E14" d="M4 4h7v1h-7zM14 4h2v1h-2zM18 4h1v1h-1zM21 4h1v1h-1zM24 4h1v1h-1zM26 4h7v1h-7zM4 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM16 5h2v1h-2zM19 5h3v1h-3zM24 5h1v1h-1zM26 5h1v1h-1zM32 5h1v1h-1zM4 6h1v1h-1zM6 6h3v1h-3zM10 6h1v1h-1zM15 6h1v1h-1zM19 6h3v1h-3zM26 6h1v1h-1zM28 6h3v1h-3zM32 6h1v1h-1zM4 7h1v1h-1zM6 7h3v1h-3zM10 7h1v1h-1zM15 7h7v1h-7zM23 7h2v1h-2zM26 7h1v1h-1zM28 7h3v1h-3zM32 7h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h1v1h-1zM12 8h5v1h-5zM18 8h3v1h-3zM23 8h1v1h-1zM26 8h1v1h-1zM28 8h3v1h-3zM32 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM17 9h1v1h-1zM19 9h4v1h-4zM24 9h1v1h-1zM26 9h1v1h-1zM32 9h1v1h-1zM4 10h7v1h-7zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h7v1h-7zM15 11h1v1h-1zM19 11h1v1h-1zM21 11h2v1h-2zM6 12h1v1h-1zM8 12h3v1h-3zM12 12h3v1h-3zM16 12h1v1h-1zM18 12h4v1h-4zM23 12h3v1h-3zM28 12h1v1h-1zM31 12h1v1h-1zM5 13h2v1h-2zM12 13h2v1h-2zM16 13h4v1h-4zM21 13h1v1h-1zM25 13h1v1h-1zM28 13h3v1h-3zM4 14h1v1h-1zM7 14h1v1h-1zM9 14h5v1h-5zM17 14h2v1h-2zM21 14h2v1h-2zM25 14h1v1h-1zM29 14h1v1h-1zM5 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM14 15h1v1h-1zM17 15h3v1h-3zM24 15h1v1h-1zM26 15h3v1h-3zM31 15h2v1h-2zM10 16h1v1h-1zM16 16h1v1h-1zM19 16h2v1h-2zM22 16h4v1h-4zM27 16h1v1h-1zM30 16h1v1h-1zM32 16h1v1h-1zM4 17h2v1h-2zM7 17h2v1h-2zM12 17h1v1h-1zM14 17h1v1h-1zM16 17h2v1h-2zM19 17h1v1h-1zM21 17h1v1h-1zM25 17h5v1h-5zM31 17h1v1h-1zM6 18h1v1h-1zM10 18h2v1h-2zM13 18h4v1h-4zM20 18h3v1h-3zM24 18h1v1h-1zM27 18h1v1h-1zM29 18h1v1h-1zM32 18h1v1h-1zM5 19h1v1h-1zM7 19h2v1h-2zM13 19h1v1h-1zM15 19h1v1h-1zM17 19h2v1h-2zM22 19h2v1h-2zM25 19h2v1h-2zM32 19h1v1h-1zM5 20h3v1h-3zM10 20h3v1h-3zM15 20h4v1h-4zM20 20h1v1h-1zM23 20h1v1h-1zM26 20h2v1h-2zM29 20h2v1h-2zM32 20h1v1h-1zM4 21h1v1h-1zM6 21h1v1h-1zM8 21h2v1h-2zM11 21h1v1h-1zM14 21h4v1h-4zM21 21h4v1h-4zM26 21h2v1h-2zM30 21h3v1h-3zM4 22h1v1h-1zM6 22h5v1h-5zM12 22h7v1h-7zM21 22h3v1h-3zM27 22h2v1h-2zM31 22h1v1h-1zM5 23h1v1h-1zM9 23h1v1h-1zM11 23h1v1h-1zM15 23h1v1h-1zM20 23h1v1h-1zM23 23h2v1h-2zM26 23h3v1h-3zM30 23h3v1h-3zM6 24h1v1h-1zM9 24h3v1h-3zM13 24h1v1h-1zM16 24h3v1h-3zM20 24h1v1h-1zM22 24h7v1h-7zM30 24h3v1h-3zM12 25h4v1h-4zM18 25h1v1h-1zM21 25h1v1h-1zM24 25h1v1h-1zM28 25h1v1h-1zM30 25h2v1h-2zM4 26h7v1h-7zM13 26h1v1h-1zM17 26h1v1h-1zM19 26h1v1h-1zM21 26h1v1h-1zM24 26h1v1h-1zM26 26h1v1h-1zM28 26h1v1h-1zM31 26h1v1h-1zM4 27h1v1h-1zM10 27h1v1h-1zM12 27h1v1h-1zM15 27h2v1h-2zM19 27h1v1h-1zM21 27h1v1h-1zM23 27h2v1h-2zM28 27h2v1h-2zM31 27h1v1h-1zM4 28h1v1h-1zM6 28h3v1h-3zM10 28h1v1h-1zM12 28h3v1h-3zM17 28h2v1h-2zM21 28h1v1h-1zM23 28h6v1h-6zM32 28h1v1h-1zM4 29h1v1h-1zM6 29h3v1h-3zM10 29h1v1h-1zM14 29h3v1h-3zM19 29h1v1h-1zM22 29h1v1h-1zM24 29h1v1h-1zM27 29h1v1h-1zM30 29h2v1h-2zM4 30h1v1h-1zM6 30h3v1h-3zM10 30h1v1h-1zM12 30h1v1h-1zM14 30h1v1h-1zM17 30h1v1h-1zM25 30h1v1h-1zM30 30h1v1h-1zM4 31h1v1h-1zM10 31h1v1h-1zM13 31h1v1h-1zM15 31h1v1h-1zM23 31h2v1h-2zM27 31h6v1h-6zM4 32h7v1h-7zM13 32h6v1h-6zM21 32h6v1h-6zM28 32h1v1h-1zM30 32h2v1h-2z"/>
+      </svg>
+      <figcaption>Scan · wellssim.app</figcaption>
+    </figure>
   </footer>
 
 </div>
